@@ -1,3 +1,4 @@
+#### [中文简体](https://github.com/baikaishuipp/jcci/blob/main/README.cn.md) OR [EN](https://github.com/baikaishuipp/jcci/blob/main/README.md)
 # jcci
 
 #### 介绍
