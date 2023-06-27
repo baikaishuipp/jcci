@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ECharts</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.2/echarts.min.js" integrity="sha512-VdqgeoWrVJcsDXFlQEKqE5MyhaIgB9yXUVaiUa8DR2J4Lr1uWcFm+ZH/YnzV5WqgKf4GPyHQ64vVLgzqGIchyw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  </head>
+  <body>
+    <div>Choose CCI Result File  <input type="file" id="datafile"></div>
+    <div id="main" style="width: 100%;height: 800px;"></div>
+    <script type="text/javascript">
+      var cciFile = document.getElementById('datafile');
+      var myChart = echarts.init(document.getElementById('main'));
+      var data = {}
+      var option = {
+        tooltip: {
+          trigger: 'item',
+          triggerOn: 'mousemove'
+        },
+        series: [
+          {
+            type: 'tree',
+            data: [data],
+            top: '1%',
+            left: '7%',
+            bottom: '1%',
+            right: '20%',
+            symbolSize: 7,
+            label: {
+              position: 'left',
+              verticalAlign: 'middle',
+              align: 'right',
+              fontSize: 9
+            },
+            leaves: {
+              label: {
+                position: 'right',
+                verticalAlign: 'middle',
+                align: 'left'
+              }
+            },
+            emphasis: {
+              focus: 'descendant'
+            },
+            expandAndCollapse: true,
+            animationDuration: 550,
+            animationDurationUpdate: 750
+          }
+        ]
+      };
+      myChart.setOption(option);
+
+      function readInputFile(event) {
+        let file = event.target.files[0];
+        if (!file) {
+          return;
+        }
+        let reader = new FileReader();
+
+        reader.addEventListener('load', event => {
+          let content = event.target.result;
+          data = JSON.parse(content)
+          option.series[0].data = [data]
+          myChart.setOption(option);
+        })
+
+        reader.readAsText(file);
+      }
+
+      cciFile.addEventListener('change', readInputFile, false);
+    </script>
+  </body>
+</html>
