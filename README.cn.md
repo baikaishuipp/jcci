@@ -4,6 +4,8 @@
 #### 介绍
 Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交对项目的影响，并生成树形图数据。
 
+PYPI: [jcci](https://pypi.org/project/jcci/)
+
 #### 软件架构
 大致原理同Idea的Find Usage一致，通过代码改动定位代码影响，并不断遍历受影响的类和方法直至找到最上层的controller层
 
