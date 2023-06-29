@@ -51,3 +51,6 @@ At the same time, the project will be cloned in the directory and then analyzed 
 2.  Create Feat_xxx branch
 3.  Commit your code
 4.  Create Pull Request
+
+#### Communication
+DingTalk Group: ![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/jcci.jpg)
