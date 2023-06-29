@@ -53,4 +53,5 @@ At the same time, the project will be cloned in the directory and then analyzed 
 4.  Create Pull Request
 
 #### Communication
-DingTalk Group: ![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/jcci.jpg)
+DingTalk Group: 
+![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/jcci.jpg)
