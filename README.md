@@ -54,4 +54,4 @@ At the same time, the project will be cloned in the directory and then analyzed 
 
 #### Communication
 DingTalk Group: 
-![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/jcci.jpg)
+![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/DingTalk.jpg)
