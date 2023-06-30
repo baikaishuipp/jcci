@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jcci"
+version = "0.0.4"
+authors = [
+  { name="Quan Li", email="441640312@qq.com" },
+]
+description = "Java code commit impact in pure Python"
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "javalang >= 0.13.0",
+    "unidiff >= 0.7.4"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/baikaishuipp/jcci"
+"Bug Tracker" = "https://github.com/baikaishuipp/jcci/issues"
