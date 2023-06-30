@@ -54,5 +54,5 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 
 
 #### 沟通交流
-钉钉群：
+微信交流群：
 ![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/DingTalk.jpg)
