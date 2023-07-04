@@ -181,8 +181,15 @@ def _analyze_java_file(filepath, folder_name):
                                 method_api_path += [method_api_path_obj.value.replace('"', '')]
                             else:
                                 if 'values' in method_api_path_obj.attrs:
-                                    method_api_path += [method_api_value.value.replace('"', '') for method_api_value in
-                                                        method_api_path_obj.values]
+                                    for method_api_value in method_api_path_obj.values:
+                                        if type(method_api_value).__name__ == "BinaryOperation":
+                                            operandl = method_api_value.operandl
+                                            operandr = method_api_value.operandr
+                                            operandl_str = _get_api_part_route(operandl)
+                                            operandr_str = _get_api_part_route(operandr)
+                                            method_api_path += [operandl_str + operandr_str]
+                                        else:
+                                            method_api_path += [method_api_value.value.replace('"', '')]
                                 else:
                                     method_api_path += [method_name + '/cci-unknown']
             if len(method_api_path) == 0:
@@ -269,6 +276,14 @@ def _analyze_java_file(filepath, folder_name):
     file_analyze.declarators = fields_list
     file_analyze.methods = methods_list
     return file_analyze
+
+
+def _get_api_part_route(part):
+    part_class = type(part).__name__
+    if part_class == 'MemberReference':
+        return part.member
+    elif part_class == 'Literal':
+        return part.value
 
 
 def _get_method_end_line(method_obj):
