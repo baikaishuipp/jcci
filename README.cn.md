@@ -39,11 +39,10 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为commit_id1...commit_id2.cci的文件，其中包含分析结果生成的树形图数据，打开jcci-result.html，选择分析结果的.cci文件，即可可通过视图显示。
 
 ##### CCI result
-![result](https://raw.githubusercontent.com/baikaishuipp/jcci/main/cci-result.png)
+![result](./images/cci-result.png)
 
 ##### CCI result tree view
-![treeView](https://raw.githubusercontent.com/baikaishuipp/jcci/main/cii-result-tree.png)
-
+![treeView](./images/cii-result-tree.png)
 
 #### 参与贡献
 
@@ -54,5 +53,4 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 
 
 #### 沟通交流
-微信交流群：
-![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/DingTalk.jpg)
+![微信交流群](./images/wechat.jpg) 回复：JCCI微信群交流

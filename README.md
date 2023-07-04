@@ -40,10 +40,10 @@ At the same time, the project will be cloned in the directory and then analyzed 
 
 
 ##### CCI result
-![result](https://raw.githubusercontent.com/baikaishuipp/jcci/main/cci-result.png)
+![result](./images/cci-result.png)
 
 ##### CCI result tree view
-![treeView](https://raw.githubusercontent.com/baikaishuipp/jcci/main/cii-result-tree.png)
+![treeView](./images/cii-result-tree.png)
 
 
 #### Contribution
@@ -54,5 +54,4 @@ At the same time, the project will be cloned in the directory and then analyzed 
 4.  Create Pull Request
 
 #### Communication
-Wechat Group: 
-![QRCode](https://raw.githubusercontent.com/baikaishuipp/jcci/main/DingTalk.jpg)
+![communicate via Wechat](./images/wechat.jpg) comment：JCCI communication
