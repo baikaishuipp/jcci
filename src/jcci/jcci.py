@@ -61,8 +61,6 @@ def _get_java_files(dir_path):
 #
 def _analyze_java_file(filepath, folder_name):
     print(filepath)
-    if 'InsightsFeeController' in filepath:
-        print("debug")
     import_list = []
     with open(filepath, encoding='UTF-8') as fp:
         file_content = fp.read()
@@ -72,7 +70,10 @@ def _analyze_java_file(filepath, folder_name):
         package_name = tree.package.name
         types = tree.types[0]
         class_name = types.name
-    except:
+    except Exception as e:
+        print(e.args)
+        print(str(e))
+        print(repr(e))
         return None
     # is controller or not
     is_controller = False
@@ -411,6 +412,8 @@ def _in_import(java_analyze, java_file_analyze):
     class_path_analyze = java_file_analyze.package_name + '.' + java_file_analyze.class_name
     if class_path_analyze == class_path:
         return True, True
+    if java_file_analyze.package_name == java_analyze.package_name:
+        return True, True
     for import_obj in imports:
         if not import_obj.wildcard:
             if class_path == import_obj.path or import_obj.path in implements:
@@ -542,7 +545,12 @@ def _clean_occupy(occupy_path):
         os.remove(occupy_path)
 
 
-def _class_in_method(class_name, method_content):
+def _class_in_method(class_name, method):
+    if method.contains_declarators is not None:
+        dcl_in_method = [d for d in method.contains_declarators if d.type == class_name]
+        if len(dcl_in_method) > 0:
+            return True
+    method_content = str(method.content)
     if class_name + ' ' in method_content \
             or '<' + class_name + '>' in method_content \
             or class_name + '.' in method_content:
@@ -588,7 +596,8 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                 classname_in_method = False
                 tmp = []
                 if diff_result_item.changed_declarators != {}:
-                    classname_in_method = _class_in_method(which_class_name, str(which_java_file_method.content))
+                    classname_in_method = _class_in_method(which_class_name, which_java_file_method)
+                print('classname_in_method: ', classname_in_method)
                 if which_java_file_method.contains_class is not None:
                     for implement in which_implements:
                         if implement in which_java_file_method.contains_class.keys() and 'methods' in \
