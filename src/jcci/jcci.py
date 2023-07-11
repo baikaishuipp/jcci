@@ -91,9 +91,13 @@ def _analyze_java_file(filepath, folder_name):
                         # print(annotation.element.values)
                         base_request = ' || '.join([literal.value for literal in annotation.element.values])
             else:
-                base_request_list = [annotation_element.value.value.replace('"', '')
-                                     for annotation_element in annotation.element
-                                     if annotation_element.name == 'value' or annotation_element.name == 'path']
+                base_request_list = []
+                for annotation_element in annotation.element:
+                    if annotation_element.name == 'value' or annotation_element.name == 'path':
+                        if 'values' in annotation_element.value.attrs:
+                            base_request_list += _get_element_with_values(annotation_element.value)
+                        else:
+                            base_request_list = [annotation_element.value.value.replace('"', '')]
                 if len(base_request_list) > 0:
                     base_request = base_request_list[0]
     if is_controller and not base_request.endswith('/'):
@@ -277,6 +281,20 @@ def _analyze_java_file(filepath, folder_name):
     file_analyze.declarators = fields_list
     file_analyze.methods = methods_list
     return file_analyze
+
+
+def _get_element_with_values(method_api_path_obj):
+    method_api_path = []
+    for method_api_value in method_api_path_obj.values:
+        if type(method_api_value).__name__ == "BinaryOperation":
+            operandl = method_api_value.operandl
+            operandr = method_api_value.operandr
+            operandl_str = _get_api_part_route(operandl)
+            operandr_str = _get_api_part_route(operandr)
+            method_api_path += [operandl_str.replace('"', '') + operandr_str.replace('"', '')]
+        else:
+            method_api_path += [method_api_value.value.replace('"', '')]
+    return method_api_path
 
 
 def _get_api_part_route(part):
