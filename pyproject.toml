@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jcci"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
-  { name="Quan Li", email="441640312@qq.com" },
+  { name="Oliver Li", email="441640312@qq.com" },
 ]
 description = "Java code commit impact analyze in pure Python"
 readme = "README.pypi.md"
 license = { file="LICENSE" }
-requires-python = ">=3.7"
+requires-python = ">=3.5"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
