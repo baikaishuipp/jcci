@@ -141,7 +141,7 @@ def _analyze_java_file(filepath, folder_name):
         method_start_line = method_obj.position.line
         if method_obj.annotations:
             method_start_line = method_obj.annotations[0].position.line
-        method_end_line = _get_method_end_line(method_obj)
+        method_end_line = _get_method_end_line_new(method_obj)
         method_content = lines[method_start_line - 1: method_end_line]
         # method is api or not
         is_api = False
@@ -285,6 +285,35 @@ def _get_api_part_route(part):
         return part.member
     elif part_class == 'Literal':
         return part.value
+
+
+def _get_method_end_line_new(method_obj):
+    method_end_line = method_obj.position.line
+    while True:
+        if isinstance(method_obj, list):
+            if None in method_obj:
+                method_obj.remove(None)
+            if len(method_obj) == 0:
+                break
+            length = len(method_obj)
+            for i in range(0, length):
+                temp = method_obj[length-1-i]
+                if temp is not None:
+                    method_obj = temp
+                    break
+            if method_obj is None:
+                break
+        if isinstance(method_obj, list):
+            continue
+        if hasattr(method_obj, 'position') \
+                and method_obj.position is not None \
+                and method_obj.position.line > method_end_line:
+            method_end_line = method_obj.position.line
+        if hasattr(method_obj, 'children'):
+            method_obj = method_obj.children
+        else:
+            break
+    return method_end_line
 
 
 def _get_method_end_line(method_obj):

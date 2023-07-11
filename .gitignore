@@ -2,3 +2,4 @@ dist
 tests
 src/jcci.egg-info
 .idea
+src/jcci/__pycache__/
