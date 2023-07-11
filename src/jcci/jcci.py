@@ -576,7 +576,7 @@ def _clean_occupy(occupy_path):
 
 def _class_in_method(class_name, method):
     if method.contains_declarators is not None:
-        dcl_in_method = [d for d in method.contains_declarators if d.type == class_name]
+        dcl_in_method = [d for d in method.contains_declarators if d['type'] == class_name]
         if len(dcl_in_method) > 0:
             return True
     method_content = str(method.content)
