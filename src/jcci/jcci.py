@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import javalang
+from javalang.parser import JavaSyntaxError
 from unidiff import PatchSet
 from .java_analyzer import JavaAnalyzer, JavaImports, JavaMethods, JavaDeclarators, JavaDiffResult
 import atexit
@@ -60,20 +61,23 @@ def _get_java_files(dir_path):
 # }
 #
 def _analyze_java_file(filepath, folder_name):
-    print(filepath)
+    print(f'{datetime.datetime.now()} : Analyzing file: {filepath}')
     import_list = []
     with open(filepath, encoding='UTF-8') as fp:
         file_content = fp.read()
     lines = file_content.split('\n')
     try:
         tree = javalang.parse.parse(file_content)
+        if tree.package is None or len(tree.types) == 0:
+            return
         package_name = tree.package.name
         types = tree.types[0]
         class_name = types.name
-    except Exception as e:
-        print(e.args)
-        print(str(e))
-        print(repr(e))
+    except JavaSyntaxError as e:
+        print(f'{datetime.datetime.now()} : Analyze failed at {str(e.at)} cause {e.description} with file {filepath} ')
+        return None
+    except Exception as ee:
+        print(f'{datetime.datetime.now()} : Analyze failed at {str(ee)} with file {filepath}')
         return None
     # is controller or not
     is_controller = False
@@ -88,7 +92,6 @@ def _analyze_java_file(filepath, folder_name):
                     if 'value' in annotation.element.attrs:
                         base_request = annotation.element.value.replace('"', '')
                     elif 'values' in annotation.element.attrs:
-                        # print(annotation.element.values)
                         base_request = ' || '.join([literal.value for literal in annotation.element.values])
             else:
                 base_request_list = []
@@ -110,7 +113,7 @@ def _analyze_java_file(filepath, folder_name):
     implements_names = [implement.name for implement in types.implements] \
         if 'implements' in types.attrs and types.implements is not None else None
     implements_names_list = []
-    import_path_class_map = {}
+    import_path_class_map = {class_name: class_path}
     for import_Obj in tree.imports:
         import_path = import_Obj.path
         if not import_path.startswith('com.'):
@@ -145,7 +148,7 @@ def _analyze_java_file(filepath, folder_name):
         method_start_line = method_obj.position.line
         if method_obj.annotations:
             method_start_line = method_obj.annotations[0].position.line
-        method_end_line = _get_method_end_line_new(method_obj)
+        method_end_line = _get_method_end_line(method_obj)
         method_content = lines[method_start_line - 1: method_end_line]
         # method is api or not
         is_api = False
@@ -284,17 +287,13 @@ def _analyze_java_file(filepath, folder_name):
 
 
 def _get_element_with_values(method_api_path_obj):
-    method_api_path = []
-    for method_api_value in method_api_path_obj.values:
-        if type(method_api_value).__name__ == "BinaryOperation":
-            operandl = method_api_value.operandl
-            operandr = method_api_value.operandr
-            operandl_str = _get_api_part_route(operandl)
-            operandr_str = _get_api_part_route(operandr)
-            method_api_path += [operandl_str.replace('"', '') + operandr_str.replace('"', '')]
-        else:
-            method_api_path += [method_api_value.value.replace('"', '')]
-    return method_api_path
+    method_api_path = [
+        _get_api_part_route(method_api_value.operandl) + _get_api_part_route(method_api_value.operandr)
+        if type(method_api_value).__name__ == "BinaryOperation"
+        else method_api_value.value
+        for method_api_value in method_api_path_obj.values
+    ]
+    return [path.replace('"', '') for path in method_api_path]
 
 
 def _get_api_part_route(part):
@@ -305,7 +304,7 @@ def _get_api_part_route(part):
         return part.value
 
 
-def _get_method_end_line_new(method_obj):
+def _get_method_end_line(method_obj):
     method_end_line = method_obj.position.line
     while True:
         if isinstance(method_obj, list):
@@ -332,38 +331,6 @@ def _get_method_end_line_new(method_obj):
         else:
             break
     return method_end_line
-
-
-def _get_method_end_line(method_obj):
-    method_end_line = method_obj.position.line
-    if method_obj.body is not None and len(method_obj.body) > 0:
-        method_end_line = method_obj.body[-1].position.line
-        method_body = method_obj.body[-1]
-        while True:
-            method_obj_dict = method_body.__dict__
-            method_last_attr = method_body.attrs[-1]
-            if type(method_obj_dict[method_last_attr]) == type([]):
-                if len(method_obj_dict[method_last_attr]) < 1:
-                    break
-                method_body = method_obj_dict[method_last_attr][-1]
-                if type(method_body.__dict__[method_body.attrs[-1]]) == type([]) \
-                        and len(method_body.__dict__[method_body.attrs[-1]]) == 0 \
-                        and len(method_obj_dict[method_last_attr]) > 1:
-                    method_body = method_obj_dict[method_last_attr][-2]
-            elif type(method_obj_dict[method_last_attr]) == type(''):
-                return method_end_line + 1
-            else:
-                if method_obj_dict[method_last_attr] is None:
-                    if '_position' in method_obj_dict.keys():
-                        method_end_line = method_obj_dict['_position'].line
-                    return method_end_line + 1
-                method_obj_dict_dict = method_obj_dict[method_last_attr].__dict__
-                method_body = method_obj_dict[method_last_attr]
-                if '_position' in method_obj_dict_dict.keys():
-                    method_end_line = method_obj_dict[method_last_attr].position.line
-                else:
-                    return method_end_line + 1
-    return method_end_line + 1
 
 
 # handle diff result text
@@ -398,8 +365,7 @@ def _analyze_diff_patch(patch, head_java_file_analyze_result, base_java_file_ana
 
 def _diff_patch_impact(methods_impacted, declarators_impacted, java_file_analyze_result, java_file_path, line_num_mode,
                        mode):
-    java_analyze = java_file_analyze_result[
-        java_file_path] if java_file_path in java_file_analyze_result.keys() else None
+    java_analyze = java_file_analyze_result.get(java_file_path)
     if java_analyze is not None:
         java_methods = java_analyze.methods
         for line_num_index in range(0, len(line_num_mode)):
@@ -425,26 +391,18 @@ def _diff_patch_lines(patch):
     line_content_added = []
     line_content_removed = []
     for hunk in patch:
-        if hunk.added > 0:
             targets = hunk.target
             target_start = hunk.target_start
-            for i in range(0, len(targets)):
-                if targets[i].startswith('+') \
-                        and not targets[i][1:].strip().startswith('*') \
-                        and not targets[i][1:].strip().startswith('//') \
-                        and not targets[i][1:].strip().startswith('import '):
-                    line_num_added.append(target_start + i + 1)
-                    line_content_added.append(targets[i][1:])
-        if hunk.removed > 0:
             sources = hunk.source
             source_start = hunk.source_start
-            for i in range(0, len(sources)):
-                if sources[i].startswith('-') \
-                        and not sources[i][1:].strip().startswith('*') \
-                        and not sources[i][1:].strip().startswith('//') \
-                        and not sources[i][1:].strip().startswith('import '):
+        for i, target in enumerate(targets):
+            if target.startswith('+') and not target[1:].strip().startswith(('*', '//', 'import ')):
+                line_num_added.append(target_start + i + 1)
+                line_content_added.append(target[1:])
+        for i, source in enumerate(sources):
+            if source.startswith('-') and not source[1:].strip().startswith(('*', '//', 'import ')):
                     line_num_removed.append(source_start + i + 1)
-                    line_content_removed.append(sources[i][1:])
+                line_content_removed.append(source[1:])
     return line_num_added, line_content_added, line_num_removed, line_content_removed
 
 
@@ -454,13 +412,11 @@ def _in_import(java_analyze, java_file_analyze):
             or java_file_analyze.imports.imports is None:
         return False, False
     class_path = java_analyze.package_name + '.' + java_analyze.class_name
+    class_path_analyze = java_file_analyze.package_name + '.' + java_file_analyze.class_name
+    if class_path_analyze == class_path or java_file_analyze.package_name == java_analyze.package_name:
+        return True, True
     implements = java_analyze.implements
     imports = java_file_analyze.imports.imports
-    class_path_analyze = java_file_analyze.package_name + '.' + java_file_analyze.class_name
-    if class_path_analyze == class_path:
-        return True, True
-    if java_file_analyze.package_name == java_analyze.package_name:
-        return True, True
     for import_obj in imports:
         if not import_obj.wildcard:
             if class_path == import_obj.path or import_obj.path in implements:
@@ -511,74 +467,22 @@ def _gen_treemap_data(diff_results, commit_first, commit_second):
                     api_list.append(api_list_item)
             else:
                 flare_children_children = {'name': 'methods.' + key, 'children': [], 'collapsed': True}
+            if changed_methods[key].get('impact') is not None:
+                for method_impact in changed_methods[key]['impact']:
+                    flare_children_sub = {'name': 'impacted.' + method_impact, 'children': [],
+                                               'collapsed': True}
+                    if flare_children_sub not in flare_children_children['children']:
+                        flare_children_children['children'].append(flare_children_sub)
             flare_children_list.append(flare_children_children)
         changed_declarators = diff_result.changed_declarators
         for key in changed_declarators.keys():
             flare_children_children = {'name': 'declarators.' + key, 'children': [], 'collapsed': True}
-            flare_children_list.append(flare_children_children)
-        impact = diff_result.impact
-        for key in impact.keys():
-            tmp_impact_class_name = key.split('.')[-1]
-            if 'methods' in impact[key].keys():
-                impact_methods = impact[key]['methods']
-                for impact_method in impact_methods:
-                    impact_method_name = impact_method['name']
-                    if impact_method['is_api']:
-                        flare_children_children = {
-                            'name': 'impacted.' + tmp_impact_class_name + '.' + impact_method_name + '(' + str(
-                                impact_method['api_path']) + ')',
-                            'children': [], 'collapsed': True}
-                        api_list_item = {'name': str(impact_method['api_path'])}
-                        if api_list_item not in api_list:
-                            api_list.append(api_list_item)
-                    else:
-                        flare_children_children = {
-                            'name': 'impacted.' + tmp_impact_class_name + '.' + impact_method_name,
-                            'children': [], 'collapsed': True}
-                    if 'contains_class' in impact_method.keys() and len(impact_method['contains_class'].keys()) > 0:
-                        for impact_method_cc_key in impact_method['contains_class'].keys():
-                            if 'methods' in impact_method['contains_class'][impact_method_cc_key].keys():
-                                for impact_method_cc_m in impact_method['contains_class'][impact_method_cc_key][
-                                    'methods']:
-                                    if impact_method_cc_m in changed_methods.keys():
-                                        for flare_children_list_item in flare_children_list:
-                                            if 'methods.' + impact_method_cc_m in flare_children_list_item['name']:
-                                                flare_children_list_item_index = flare_children_list.index(
-                                                    flare_children_list_item)
-                                                if impact_method['is_api']:
-                                                    flare_children_list_item_children = {
-                                                        'name': 'impacted.' + tmp_impact_class_name + '.' + impact_method_name + '(' + str(
-                                                            impact_method['api_path']) + ')',
-                                                        'children': [], 'collapsed': True}
-                                                    api_list_item = {'name': str(impact_method['api_path'])}
-                                                    if api_list_item not in api_list:
-                                                        api_list.append(api_list_item)
-                                                else:
-                                                    flare_children_list_item_children = {
-                                                        'name': 'impacted.' + tmp_impact_class_name + '.' + impact_method_name,
-                                                        'children': [], 'collapsed': True}
-                                                if flare_children_list_item_children not in flare_children_list_item[
-                                                    'children']:
-                                                    flare_children_list_item['children'].append(
-                                                        flare_children_list_item_children)
-                                                flare_children_list[
-                                                    flare_children_list_item_index] = flare_children_list_item
-                                            else:
-                                                if flare_children_children not in flare_children_list:
-                                                    flare_children_list.append(flare_children_children)
-                                    else:
-                                        if flare_children_children not in flare_children_list:
-                                            flare_children_list.append(flare_children_children)
-                            else:
-                                if flare_children_children not in flare_children_list:
-                                    flare_children_list.append(flare_children_children)
-                    else:
-                        if flare_children_children not in flare_children_list:
-                            flare_children_list.append(flare_children_children)
-            else:
-                flare_children_children = {'name': 'impacted.' + tmp_impact_class_name, 'children': [],
+            if changed_declarators[key].get('impact') is not None:
+                for declarator_impact in changed_declarators[key]['impact']:
+                    flare_children_sub = {'name': 'impacted.' + declarator_impact, 'children': [],
                                            'collapsed': True}
-                if flare_children_children not in flare_children_list:
+                    if flare_children_sub not in flare_children_children['children']:
+                        flare_children_children['children'].append(flare_children_sub)
                     flare_children_list.append(flare_children_children)
         flare_children['children'] = flare_children_list
         flare['children'].append(flare_children)
@@ -650,14 +554,13 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                 which_java_file_method.contains_class[implement].keys():
                             java_file_method_includes_methods = which_java_file_method.contains_class[implement][
                                 'methods']
-                            tmp = [j for j in diff_result_item.changed_methods.keys() if
+                            tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys() if
                                    mode in diff_result_item.changed_methods[j][
                                        'diff_impact'] and j in java_file_method_includes_methods]
                 if len(tmp) == 0:
                     method_content_str = str(which_java_file_method.content)
-                    if len(which_java_file_declarators) > 0:
                         for declarator in which_java_file_declarators:
-                            tmp += [j for j in diff_result_item.changed_methods.keys() if
+                        tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys() if
                                     mode in diff_result_item.changed_methods[j]['diff_impact']
                                     and ('(' + j + '(' in method_content_str
                                          or '=' + j + '(' in method_content_str
@@ -666,16 +569,25 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                          or declarator.name + '.' + j + '(' in method_content_str
                                          )
                                     ]
-                    else:
-                        tmp += [j for j in diff_result_item.changed_methods.keys() if
-                                mode in diff_result_item.changed_methods[j]['diff_impact']
-                                and ('(' + j + '(' in method_content_str
-                                     or '=' + j + '(' in method_content_str
-                                     or '=' + j + '(' in method_content_str
-                                     or '= ' + j + '(' in method_content_str
-                                     )
-                                ]
                 if len(tmp) > 0 or classname_in_method:
+                    ##
+                    impact_method = which_java_file_analyze.class_name + '.' + which_java_file_method.name
+                    if which_java_file_method.is_api:
+                        impact_method += '(' + str(which_java_file_method.api_path) + ')'
+                    if len(tmp) > 0:
+                        for tmp_method in tmp:
+                            if tmp_method.get('impact') is None:
+                                tmp_method['impact'] = []
+                            if impact_method not in tmp_method.get('impact'):
+                                tmp_method_name = tmp_method['name']
+                                tmp_method['impact'].append(impact_method)
+                                diff_result_item.changed_methods[tmp_method_name] = tmp_method
+                    if classname_in_method:
+                        if diff_result_item.changed_declarators.get('impact') is None:
+                            diff_result_item.changed_declarators['impact'] = []
+                        if impact_method not in diff_result_item.changed_declarators['impact']:
+                            diff_result_item.changed_declarators['impact'].append(impact_method)
+                    ##
                     if which_java_file_method.diff_impact is None or which_java_file_method.diff_impact != '':
                         which_java_file_method.diff_impact = mode
                     else:
