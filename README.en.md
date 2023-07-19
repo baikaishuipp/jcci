@@ -1,4 +1,4 @@
-#### [中文简体](https://github.com/baikaishuipp/jcci/blob/main/README.cn.md) OR [English](https://github.com/baikaishuipp/jcci/blob/main/README.md)
+#### [中文简体](https://github.com/baikaishuipp/jcci/blob/main/README.md) OR [English](https://github.com/baikaishuipp/jcci/blob/main/README.en.md)
 # jcci
 
 #### Description
