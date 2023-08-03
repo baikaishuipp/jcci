@@ -36,7 +36,7 @@ from jcci import jcci
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ```
 
-运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为commit_id1...commit_id2.cci的文件，其中包含分析结果生成的树形图数据，打开jcci-result.html，选择分析结果的.cci文件，即可可通过视图显示。
+运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为commit_id1...commit_id2.cci的文件，其中包含分析结果生成的树形图数据，下载jcci-result.html[https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html]，选择分析结果的.cci文件，即可可通过视图显示。
 
 ##### CCI result
 ![result](./images/cci-result.png)
