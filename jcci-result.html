@@ -108,8 +108,9 @@
           let content = event.target.result;
           select.value = 'tree'
           treeData = JSON.parse(content)
-          treeData['children'].shift()
-          let covertData = convertTreeToGraph(treeData)
+          let treeDataCopy = JSON.parse(content)
+          treeDataCopy['children'].shift()
+          let covertData = convertTreeToGraph(treeDataCopy)
           graphData = covertData.data
           graphLinks = covertData.links
           optionTree.series[0].data = [treeData]
