@@ -30,8 +30,9 @@ class JavaDeclarators(object):
 
 
 class JavaMethods(object):
-    def __init__(self, name, start, end, content, is_api, api_path):
+    def __init__(self, name, params, start, end, content, is_api, api_path):
         self.name = name
+        self.params = params
         self.start = start
         self.end = end
         self.content = content
