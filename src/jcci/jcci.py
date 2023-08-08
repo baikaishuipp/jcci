@@ -119,7 +119,7 @@ def _analyze_java_file(filepath, folder_name):
     import_path_class_map = {class_name: class_path}
     for import_Obj in tree.imports:
         import_path = import_Obj.path
-        if not import_path.startswith('com.'):
+        if not import_path.startswith('com.') and not import_path.startswith('cn.'):
             continue
         if not import_Obj.wildcard and not import_Obj.static:
             import_path_class = import_path.split('.')[-1]
@@ -179,7 +179,15 @@ def _analyze_java_file(filepath, folder_name):
                                                             method_annotation_element_values
                                                             if 'member' in method_annotation_element_temp.attrs]
                     if type(method_annotation.element) != type([]):
-                        if method_annotation.element is not None and method_annotation.element.value is not None:
+                        if method_annotation.element is None:
+                            continue
+                        if type(method_annotation.element).__name__ == "BinaryOperation":
+                            operandl = method_annotation.element.operandl
+                            operandr = method_annotation.element.operandr
+                            operandl_str = _get_api_part_route(operandl)
+                            operandr_str = _get_api_part_route(operandr)
+                            method_api_path += [operandl_str + operandr_str]
+                        elif method_annotation.element.value is not None:
                             method_api_path += [method_annotation.element.value.replace('"', '')]
                     else:
                         method_api_path_list = [method_annotation_element.value for method_annotation_element in
@@ -313,9 +321,9 @@ def _get_element_with_values(method_api_path_obj):
 def _get_api_part_route(part):
     part_class = type(part).__name__
     if part_class == 'MemberReference':
-        return part.member
+        return part.member.replace('"', '')
     elif part_class == 'Literal':
-        return part.value
+        return part.value.replace('"', '')
 
 
 def _get_method_end_line(method_obj):
