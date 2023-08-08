@@ -23,6 +23,7 @@
       var treeData = {}
       var graphData = []
       var graphLinks = []
+      var symbolSize = 30
       var optionTree = {
         tooltip: {
           trigger: 'item',
@@ -69,7 +70,7 @@
         {
           type: 'graph',
           layout: 'none',
-          symbolSize: 35,
+          symbolSize: symbolSize,
           roam: true,
           label: {
               show: true
@@ -142,13 +143,50 @@
         return '#' + hexColor;
       }
 
+      function countTargetInLinks(nodeName, links) {
+        var count = 0;
+        for(var i=0; i < links.length; i++) {
+          var link = links[i]
+          if(link.target === nodeName) {
+            count = count + 1
+          }
+        }
+        return count
+      }
+
+      function adjustNodeObj(nodeObj, nodes, rate) {
+        for(var i=0; i < nodes.length; i++) {
+          if(nodes[i].x === nodeObj.x) {
+            if(Math.abs(nodes[i].y - nodeObj.y) < 50) {
+              nodeObj.y = nodeObj.y + 50*rate
+            }
+          }
+        }
+      }
+
+      function countTreeDataChildrenCount(treeData) {
+        var count = 0
+        for(var i=0; i < treeData.children.length; i++) {
+          count = count + treeData.children[i].children.length
+        }
+        return count
+      }
+
       function convertTreeToGraph(treeData) {
         const nodes = [];
         const links = [];
-
+        const childrenCount = countTreeDataChildrenCount(treeData)
+        var rate = 1
+        if(childrenCount > 20) {
+          symbolSize = symbolSize / (childrenCount / 20)
+          rate = rate / (childrenCount / 20)
+        } else {
+          symbolSize = 30
+        }
         function traverse(parentName, node, level, parentX, parentY) {
           // Create node object
           const nodeName = getNodeName(node.name, parentName);
+          const targetCount = countTargetInLinks(nodeName, links);
           const nodeObj = {
             name: nodeName,
             x: parentX + 100,
@@ -157,12 +195,13 @@
               color: genColorByName(nodeName),
             },
           };
+          adjustNodeObj(nodeObj, nodes, rate);
           const nodeExist = nodes.find((n) => n.name === nodeName);
           let offset = 0;
           if (!nodeExist) {
             nodes.push(nodeObj);
           } else {
-            offset = 100;
+            offset = 100*rate;
           }
 
           // Traverse children nodes
@@ -170,11 +209,11 @@
           const numChildren = children.length;
           if (numChildren > 0) {
             const yRange = [
-              parentY - ((numChildren - 1) * 40) / 2,
-              parentY + ((numChildren - 1) * 70) / 2,
+              parentY - ((numChildren - 1) * 40*rate) / 2,
+              parentY + ((numChildren - 1) * 70*rate) / 2,
             ];
             for (let i = 0; i < numChildren; i++) {
-              const yChild = yRange[0] + i * 50;
+              const yChild = yRange[0] + i * 50*rate;
               traverse(nodeName, children[i], level + 1, nodeObj.x + offset, yChild);
               const link = {
                 source: nodeName,
@@ -199,6 +238,7 @@
         } else {
           optionGraph.series[0].data = graphData
           optionGraph.series[0].links = graphLinks
+          optionGraph.series[0].symbolSize = symbolSize
           myChart.setOption(optionGraph);
         }
       });
