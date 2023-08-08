@@ -741,6 +741,10 @@ def _diff_xml_impact(diff_result_item_index, diff_results_list, which_java_file_
 
 # Press the green button in the gutter to run the script.
 def analyze(project_git_url, branch_name, commit_first, commit_second, request_user):
+    if len(commit_first) > 7:
+        commit_first = commit_first[0: 7]
+    if len(commit_second) > 7:
+        commit_second = commit_second[0: 7]
     t1 = datetime.datetime.now()
     print(datetime.datetime.now(), ':', 'Start At:', datetime.datetime.now(), flush=True)
     cur_dir = os.getcwd()
