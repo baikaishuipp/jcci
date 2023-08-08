@@ -145,7 +145,7 @@ def _analyze_java_file(filepath, folder_name):
         fields_list.append(field_map)
 
     methods_list = []
-    method_name_param_map_list = [{'name':method.name, 'param':method.parameters} for method in types.methods]
+    method_name_param_map_list = [{'name': method.name, 'param': method.parameters} for method in types.methods]
     for method_obj in types.methods:
         method_name = method_obj.name
         method_start_line = method_obj.position.line
@@ -214,7 +214,7 @@ def _analyze_java_file(filepath, folder_name):
                 for req_method_temp in req_method_list:
                     full_api = '[' + req_method_temp + ']' + api_path
                     api_path_list.append(full_api)
-        method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line, method_content, is_api, api_path_list)
+        method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list)
         # imports in this method or not
         method_content_str = ''.join(method_content)
         for import_path_class in import_path_class_map.keys():
@@ -328,7 +328,7 @@ def _get_method_end_line(method_obj):
                 break
             length = len(method_obj)
             for i in range(0, length):
-                temp = method_obj[length-1-i]
+                temp = method_obj[length - 1 - i]
                 if temp is not None:
                     method_obj = temp
                     break
