@@ -103,7 +103,7 @@ def _analyze_java_file(filepath, folder_name):
                         if 'values' in annotation_element.value.attrs:
                             base_request_list += _get_element_with_values(annotation_element.value)
                         else:
-                            base_request_list = [annotation_element.value.value.replace('"', '')]
+                            base_request_list += _get_element_value(annotation_element.value)
                 if len(base_request_list) > 0:
                     base_request = base_request_list[0]
     if is_controller and not base_request.endswith('/'):
@@ -181,16 +181,7 @@ def _analyze_java_file(filepath, folder_name):
                     if type(method_annotation.element) != type([]):
                         if method_annotation.element is None:
                             continue
-                        if type(method_annotation.element).__name__ == 'BinaryOperation':
-                            operandl = method_annotation.element.operandl
-                            operandr = method_annotation.element.operandr
-                            operandl_str = _get_api_part_route(operandl)
-                            operandr_str = _get_api_part_route(operandr)
-                            method_api_path += [operandl_str + operandr_str]
-                        elif type(method_annotation.element).__name__ == 'MemberReference':
-                            method_api_path += [method_annotation.element.member.replace('"', '')]
-                        elif method_annotation.element.value is not None:
-                            method_api_path += [method_annotation.element.value.replace('"', '')]
+                        method_api_path += _get_element_value(method_annotation.element)
                     else:
                         method_api_path_list = [method_annotation_element.value for method_annotation_element in
                                                 method_annotation.element
@@ -203,14 +194,7 @@ def _analyze_java_file(filepath, folder_name):
                             else:
                                 if 'values' in method_api_path_obj.attrs:
                                     for method_api_value in method_api_path_obj.values:
-                                        if type(method_api_value).__name__ == "BinaryOperation":
-                                            operandl = method_api_value.operandl
-                                            operandr = method_api_value.operandr
-                                            operandl_str = _get_api_part_route(operandl)
-                                            operandr_str = _get_api_part_route(operandr)
-                                            method_api_path += [operandl_str + operandr_str]
-                                        else:
-                                            method_api_path += [method_api_value.value.replace('"', '')]
+                                        method_api_path += _get_element_value(method_api_value)
                                 else:
                                     method_api_path += [method_name + '/cci-unknown']
             if len(method_api_path) == 0:
@@ -310,14 +294,23 @@ def _analyze_java_file(filepath, folder_name):
     return file_analyze
 
 
+def _get_element_value(method_element):
+    method_api_path = []
+    if type(method_element).__name__ == 'BinaryOperation':
+        operandl = method_element.operandl
+        operandr = method_element.operandr
+        operandl_str = _get_api_part_route(operandl)
+        operandr_str = _get_api_part_route(operandr)
+        method_api_path = [operandl_str + operandr_str]
+    elif type(method_element).__name__ == 'MemberReference':
+        method_api_path = [method_element.member.replace('"', '')]
+    elif method_element.value is not None:
+        method_api_path = [method_element.value.replace('"', '')]
+    return method_api_path
+
+
 def _get_element_with_values(method_api_path_obj):
-    method_api_path = [
-        _get_api_part_route(method_api_value.operandl) + _get_api_part_route(method_api_value.operandr)
-        if type(method_api_value).__name__ == "BinaryOperation"
-        else method_api_value.value
-        for method_api_value in method_api_path_obj.values
-    ]
-    return [path.replace('"', '') for path in method_api_path]
+    return [_get_element_value(method_api_value) for method_api_value in method_api_path_obj.values]
 
 
 def _get_api_part_route(part):
