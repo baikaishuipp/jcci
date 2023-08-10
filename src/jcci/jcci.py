@@ -181,12 +181,14 @@ def _analyze_java_file(filepath, folder_name):
                     if type(method_annotation.element) != type([]):
                         if method_annotation.element is None:
                             continue
-                        if type(method_annotation.element).__name__ == "BinaryOperation":
+                        if type(method_annotation.element).__name__ == 'BinaryOperation':
                             operandl = method_annotation.element.operandl
                             operandr = method_annotation.element.operandr
                             operandl_str = _get_api_part_route(operandl)
                             operandr_str = _get_api_part_route(operandr)
                             method_api_path += [operandl_str + operandr_str]
+                        elif type(method_annotation.element).__name__ == 'MemberReference':
+                            method_api_path += [method_annotation.element.member.replace('"', '')]
                         elif method_annotation.element.value is not None:
                             method_api_path += [method_annotation.element.value.replace('"', '')]
                     else:
