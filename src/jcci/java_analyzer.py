@@ -27,6 +27,12 @@ class JavaDeclarators(object):
         self.line = line
         self.contains_class = ''
         self.diff_impact = ''
+        self.res_name = None
+        self.res_type = None
+
+    def set_resource(self, res_name, res_type):
+        self.res_name = res_name
+        self.res_type = res_type
 
 
 class JavaMethods(object):

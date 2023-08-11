@@ -140,7 +140,28 @@ def _analyze_java_file(filepath, folder_name):
         field_type = field_obj.type.name
         field_declarators = field_obj.declarators[0].name
         field_map = JavaDeclarators(field_type, field_declarators, field_obj.position.line)
-        if field_type in import_path_class_map.keys():
+
+        if 'annotations' in field_obj.attrs:
+            field_resource_name = None
+            field_resource_type = None
+            for field_anno in field_obj.annotations:
+                if field_anno.name != 'Resource' or field_anno.element is None:
+                    continue
+                for field_anno_el in field_anno.element:
+                    if field_anno_el.name == 'name':
+                        field_resource_name = _get_element_value(field_anno_el.value)[0]
+                    if field_anno_el.name == 'type':
+                        field_resource_type = field_anno_el.value.type.name
+                        if field_resource_type in import_path_class_map.keys():
+                            field_resource_type = import_path_class_map.get(field_resource_type)
+                        else:
+                            field_resource_type = package_name + '.' + field_resource_type
+            field_map.set_resource(field_resource_name, field_resource_type)
+        if field_resource_type is not None:
+            field_map.contains_class = field_resource_type
+        elif field_resource_name is not None:
+            field_map.contains_class = field_resource_name
+        elif field_type in import_path_class_map.keys():
             field_map.contains_class = import_path_class_map[field_type]
         fields_list.append(field_map)
 
@@ -596,8 +617,11 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
             if not is_in:
                 continue
             which_java_file_methods = which_java_file_analyze.methods
-            which_java_file_declarators = [declarator for declarator in which_java_file_analyze.declarators if
-                                           declarator.type == which_class_name]
+            which_java_file_declarators = [declarator for declarator in which_java_file_analyze.declarators
+                                           if declarator.type == which_class_name or
+                                           declarator.res_name == which_class_name or
+                                           declarator.res_type == which_class_path
+                                           ]
             for which_java_file_method in which_java_file_methods:
                 classname_in_method = False
                 tmp = []
@@ -610,10 +634,15 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                             classname_in_method = False
                 if which_java_file_method.contains_class is not None:
                     for implement in which_implements:
+                        implement_name = implement.split('.')[-1]
                         if implement in which_java_file_method.contains_class.keys() and 'methods' in \
                                 which_java_file_method.contains_class[implement].keys():
-                            java_file_method_includes_methods = which_java_file_method.contains_class[implement][
-                                'methods']
+                            java_file_method_includes_methods = which_java_file_method.contains_class[implement]['methods']
+                            tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys()
+                                    if mode in diff_result_item.changed_methods[j]['diff_impact'] and j in java_file_method_includes_methods]
+                        elif implement_name in which_java_file_method.contains_class.keys() and 'methods' in \
+                                which_java_file_method.contains_class[implement_name].keys():
+                            java_file_method_includes_methods = which_java_file_method.contains_class[implement_name]['methods']
                             tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys()
                                     if mode in diff_result_item.changed_methods[j]['diff_impact'] and j in java_file_method_includes_methods]
                 if len(tmp) == 0:
