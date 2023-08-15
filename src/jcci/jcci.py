@@ -484,7 +484,9 @@ def _in_import(java_analyze, java_file_analyze):
         return False, False
     class_path = java_analyze.package_name + '.' + java_analyze.class_name
     class_path_analyze = java_file_analyze.package_name + '.' + java_file_analyze.class_name
-    if class_path_analyze == class_path or java_file_analyze.package_name == java_analyze.package_name:
+    if class_path_analyze == class_path \
+            or java_file_analyze.package_name == java_analyze.package_name\
+            or java_file_analyze.extends == class_path:
         return True, True
     implements = java_analyze.implements
     imports = java_file_analyze.imports.imports
