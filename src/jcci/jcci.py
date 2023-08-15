@@ -176,11 +176,13 @@ def _analyze_java_file(filepath, folder_name):
         # method is api or not
         is_api = False
         api_path_list = []
+        method_annotation_names = []
         if is_controller:
             method_annotations = method_obj.annotations
             req_method_list = []
             method_api_path = []
             for method_annotation in method_annotations:
+                method_annotation_names.append(method_annotation.name)
                 if 'Mapping' in method_annotation.name:
                     is_api = True
                     if method_annotation.name != 'RequestMapping':
@@ -228,7 +230,7 @@ def _analyze_java_file(filepath, folder_name):
                 for req_method_temp in req_method_list:
                     full_api = '[' + req_method_temp + ']' + api_path
                     api_path_list.append(full_api)
-        method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list)
+        method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list, method_annotation_names)
         # imports in this method or not
         method_content_str = ''.join(method_content)
         for import_path_class in import_path_class_map.keys():
@@ -596,6 +598,20 @@ def _declarator_in_method(declarators, method):
     return declarator_in_method
 
 
+def _method_override(method, extend_methods):
+    extend_methods = [extend_method for extend_method in extend_methods if extend_method.name == method.name]
+    if len(extend_methods) == 0:
+        return False
+    method_param_type = [param.type for param in method.params]
+    for extend_method in extend_methods:
+        if 'Override' not in extend_method.annotations:
+            continue
+        extend_method_param_type = [param.type for param in extend_method.params]
+        if method_param_type == extend_method_param_type:
+            return True
+    return False
+
+
 def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_file_analyze_result, mode):
     diff_result_item = diff_results_list[diff_result_item_index]
     diff_result_filepath = diff_result_item.filepath
@@ -614,12 +630,13 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                 continue
             which_java_file_extends = which_java_file_analyze.extends
             which_java_file_analyze_extends_list = [value for value in which_java_file_analyze_result.values()
-                                               if value.package_name + '.' + value.class_name == which_java_file_extends]
+                                               if type(value) == JavaAnalyzer and value.package_name + '.' + value.class_name == which_java_file_extends]
             if len(which_java_file_analyze_extends_list) > 0:
                 which_java_file_analyze_extends = which_java_file_analyze_extends_list[0]
                 which_java_file_analyze.imports.imports = which_java_file_analyze.imports.imports + which_java_file_analyze_extends.imports.imports
                 which_java_file_analyze.declarators = which_java_file_analyze.declarators + which_java_file_analyze_extends.declarators
-                # which_java_analyze.methods.append(which_java_file_analyze_extends.methods)
+                which_java_file_analyze.methods = which_java_file_analyze.methods + [method for method in which_java_file_analyze_extends.methods
+                                                                                     if not _method_override(method, which_java_file_analyze.methods)]
             is_in, directly = _in_import(which_java_analyze, which_java_file_analyze)
             if not is_in:
                 continue

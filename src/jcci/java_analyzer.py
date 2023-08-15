@@ -36,7 +36,7 @@ class JavaDeclarators(object):
 
 
 class JavaMethods(object):
-    def __init__(self, name, params, start, end, content, is_api, api_path):
+    def __init__(self, name, params, start, end, content, is_api, api_path, annotations):
         self.name = name
         self.params = params
         self.start = start
@@ -47,6 +47,7 @@ class JavaMethods(object):
         self.is_api = is_api
         self.api_path = api_path
         self.diff_impact = None
+        self.annotations = annotations
 
     def __getitem__(self, item):
         return item
