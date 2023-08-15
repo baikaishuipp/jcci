@@ -140,10 +140,9 @@ def _analyze_java_file(filepath, folder_name):
         field_type = field_obj.type.name
         field_declarators = field_obj.declarators[0].name
         field_map = JavaDeclarators(field_type, field_declarators, field_obj.position.line)
-
+        field_resource_name = None
+        field_resource_type = None
         if 'annotations' in field_obj.attrs:
-            field_resource_name = None
-            field_resource_type = None
             for field_anno in field_obj.annotations:
                 if field_anno.name != 'Resource' or field_anno.element is None:
                     continue
@@ -613,6 +612,14 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
             which_java_file_analyze = which_java_file_analyze_result[which_java_file_analyze_key]
             if which_java_file_analyze_key.endswith('.xml'):
                 continue
+            which_java_file_extends = which_java_file_analyze.extends
+            which_java_file_analyze_extends_list = [value for value in which_java_file_analyze_result.values()
+                                               if value.package_name + '.' + value.class_name == which_java_file_extends]
+            if len(which_java_file_analyze_extends_list) > 0:
+                which_java_file_analyze_extends = which_java_file_analyze_extends_list[0]
+                which_java_file_analyze.imports.imports = which_java_file_analyze.imports.imports + which_java_file_analyze_extends.imports.imports
+                which_java_file_analyze.declarators = which_java_file_analyze.declarators + which_java_file_analyze_extends.declarators
+                # which_java_analyze.methods.append(which_java_file_analyze_extends.methods)
             is_in, directly = _in_import(which_java_analyze, which_java_file_analyze)
             if not is_in:
                 continue
