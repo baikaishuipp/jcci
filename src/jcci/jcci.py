@@ -131,6 +131,7 @@ def _analyze_java_file(filepath, folder_name):
                 implements_names_list.append(import_path)
     if implements_names and not implements_names_list:
         implements_names_list.append(package_name + '.' + implements_names[0])
+        import_path_class_map[implements_names[0]] = package_name + '.' + implements_names[0]
     imports = JavaImports(
         tree.imports[0].position.line if tree.imports else None,
         tree.imports[-1].position.line if tree.imports else None,
