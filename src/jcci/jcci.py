@@ -465,7 +465,7 @@ def _diff_patch_lines(patch):
                         and not targets[i][1:].strip().startswith('*') \
                         and not targets[i][1:].strip().startswith('//') \
                         and not targets[i][1:].strip().startswith('import '):
-                    line_num_added.append(target_start + i + 1)
+                    line_num_added.append(target_start + i)
                     line_content_added.append(targets[i][1:])
         if hunk.removed > 0:
             sources = hunk.source
@@ -475,7 +475,7 @@ def _diff_patch_lines(patch):
                         and not sources[i][1:].strip().startswith('*') \
                         and not sources[i][1:].strip().startswith('//') \
                         and not sources[i][1:].strip().startswith('import '):
-                    line_num_removed.append(source_start + i + 1)
+                    line_num_removed.append(source_start + i)
                     line_content_removed.append(sources[i][1:])
     return line_num_added, line_content_added, line_num_removed, line_content_removed
 
