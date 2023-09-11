@@ -659,8 +659,6 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                     classname_in_method = _class_in_method(which_class_name, which_java_file_method)
                     if classname_in_method:
                         declarator_in_method_key = _declarator_in_method(diff_result_item.changed_declarators.keys(), which_java_file_method)
-                        if len(declarator_in_method_key) == 0:
-                            classname_in_method = False
                 if which_java_file_method.contains_class is not None:
                     for implement in which_implements:
                         implement_name = implement.split('.')[-1]
