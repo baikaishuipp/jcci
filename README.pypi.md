@@ -23,8 +23,3 @@ At the same time, the project will be cloned in the directory and then analyzed 
 
 ##### CCI result tree view
 ![treeView](https://raw.githubusercontent.com/baikaishuipp/jcci/main/images/cii-result-tree.png)
-
-#### Communication
-Communicate via Wechat:
-
-![communicate via Wechat](https://raw.githubusercontent.com/baikaishuipp/jcci/main/images/wechat.jpg) 

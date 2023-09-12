@@ -676,15 +676,18 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                     if mode in diff_result_item.changed_methods[j]['diff_impact'] and j in java_file_method_includes_methods]
                 if len(tmp) == 0:
                     method_content_str = str(which_java_file_method.content)
-                    for declarator in which_java_file_declarators:
                         tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys() if
                                 mode in diff_result_item.changed_methods[j]['diff_impact']
                                 and ('(' + j + '(' in method_content_str
                                      or '=' + j + '(' in method_content_str
                                      or '= ' + j + '(' in method_content_str
-                                     or declarator.name + '.' + j + '(' in method_content_str
                                      or which_class_name + '.' + j + '(' in method_content_str
                                      )
+                                ]
+                    for declarator in which_java_file_declarators:
+                        tmp += [diff_result_item.changed_methods[j] for j in diff_result_item.changed_methods.keys() if
+                                mode in diff_result_item.changed_methods[j]['diff_impact']
+                                and declarator.name + '.' + j + '(' in method_content_str
                                 ]
                 if len(tmp) > 0 or classname_in_method:
                     ##
