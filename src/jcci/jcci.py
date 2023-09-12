@@ -652,7 +652,8 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
             which_java_file_declarators = [declarator for declarator in which_java_file_analyze.declarators
                                            if declarator.type == which_class_name or
                                            declarator.res_name == which_class_name or
-                                           declarator.res_type == which_class_path
+                                           declarator.res_type == which_class_path or
+                                           declarator.contains_class == which_implements[0]
                                            ]
             for which_java_file_method in which_java_file_methods:
                 classname_in_method = False
@@ -682,9 +683,9 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                 mode in diff_result_item.changed_methods[j]['diff_impact']
                                 and ('(' + j + '(' in method_content_str
                                      or '=' + j + '(' in method_content_str
-                                     or '=' + j + '(' in method_content_str
                                      or '= ' + j + '(' in method_content_str
                                      or declarator.name + '.' + j + '(' in method_content_str
+                                     or which_class_name + '.' + j + '(' in method_content_str
                                      )
                                 ]
                 if len(tmp) > 0 or classname_in_method:
