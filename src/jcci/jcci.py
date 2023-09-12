@@ -231,9 +231,7 @@ def _analyze_java_file(filepath, folder_name):
                 if api_path.endswith('/'):
                     api_path = api_path[0:-1]
                 if len(req_method_list) > 0:
-                for req_method_temp in req_method_list:
-                    full_api = '[' + req_method_temp + ']' + api_path
-                    api_path_list.append(full_api)
+                    api_path_list = ['[' + req_method_temp + ']' + api_path for req_method_temp in req_method_list]
                 else:
                     api_path_list.append('[ALL]' + api_path)
         method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list, method_annotation_names)
