@@ -9,11 +9,10 @@ import logging
 import javalang
 from javalang.parser import JavaSyntaxError
 from unidiff import PatchSet
-
 from .java_analyzer import JavaAnalyzer, JavaImports, JavaMethods, JavaDeclarators, JavaDiffResult
 from .mapper_parse import parse
 
-sep = os.sep
+
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
@@ -54,7 +53,7 @@ def _analyze_java_file(filepath, folder_name):
         if 'Controller' in annotation.name:
             is_controller = True
         if 'RequestMapping' == annotation.name:
-            if type(annotation.element) != type([]):
+            if not isinstance(annotation.element, list):
                 if annotation.element is not None:
                     if 'value' in annotation.element.attrs:
                         base_request = annotation.element.value.replace('"', '')
@@ -73,12 +72,9 @@ def _analyze_java_file(filepath, folder_name):
     if is_controller and not base_request.endswith('/'):
         base_request += '/'
     class_path = package_name + '.' + class_name
-    extends_name = types.extends.name \
-        if 'extends' in types.attrs and types.extends is not None \
-           and type(types.extends) != type([]) else None
+    extends_name = types.extends.name if 'extends' in types.attrs and types.extends is not None and not isinstance(types.extends, list) else None
     extends_name_path = extends_name
-    implements_names = [implement.name for implement in types.implements] \
-        if 'implements' in types.attrs and types.implements is not None else None
+    implements_names = [implement.name for implement in types.implements] if 'implements' in types.attrs and types.implements is not None else None
     implements_names_list = []
     import_path_class_map = {class_name: class_path}
     for import_Obj in tree.imports:
@@ -155,7 +151,7 @@ def _analyze_java_file(filepath, folder_name):
                     if method_annotation.name != 'RequestMapping':
                         req_method_list.append(method_annotation.name.replace('Mapping', ''))
                     else:
-                        if type(method_annotation.element) == type([]):
+                        if isinstance(method_annotation.element, list):
                             for method_annotation_element in method_annotation.element:
                                 if 'name' in method_annotation_element.attrs and method_annotation_element.name == 'method':
                                     method_annotation_element_value = method_annotation_element.value
@@ -167,15 +163,13 @@ def _analyze_java_file(filepath, folder_name):
                                                             method_annotation_element_temp in
                                                             method_annotation_element_values
                                                             if 'member' in method_annotation_element_temp.attrs]
-                    if type(method_annotation.element) != type([]):
+                    if not isinstance(method_annotation.element, list):
                         if method_annotation.element is None:
                             continue
                         method_api_path += _get_element_value(method_annotation.element)
                     else:
-                        method_api_path_list = [method_annotation_element.value for method_annotation_element in
-                                                method_annotation.element
-                                                if
-                                                method_annotation_element.name == 'path' or method_annotation_element.name == 'value']
+                        method_api_path_list = [method_annotation_element.value for method_annotation_element in method_annotation.element
+                                                if method_annotation_element.name == 'path' or method_annotation_element.name == 'value']
                         if len(method_api_path_list) > 0:
                             method_api_path_obj = method_api_path_list[0]
                             if 'value' in method_api_path_obj.attrs:
@@ -245,7 +239,7 @@ def _analyze_java_file(filepath, folder_name):
             if method_name_param_map['name'] == method_name and method_name_param_map['param'] == method_obj.parameters:
                 continue
             for method_content_line in method_content:
-                if method_name_param_map['name'] + '(' in method_content_line and not method_content_line.endswith("{"):
+                if method_name_param_map['name'] + '(' in method_content_line and not method_content_line.endswith('{'):
                     if class_path not in method_map.contains_class.keys():
                         method_map.contains_class[class_path] = {'methods': [method_name_param_map['name']]}
                     else:
@@ -255,11 +249,11 @@ def _analyze_java_file(filepath, folder_name):
                             method_map.contains_class[class_path] = {'methods': [method_name_param_map['name']]}
         if 'body' in method_obj.attrs and method_obj.body is not None:
             for method_body in method_obj.body:
-                if str(type(method_body)) == "<class 'javalang.tree.LocalVariableDeclaration'>":
+                if type(method_body).__name__ == 'LocalVariableDeclaration':
                     if 'type' in method_body.attrs and 'name' in method_body.type.attrs \
                             and method_body.type.name in import_path_class_map.keys() \
                             and 'declarators' in method_body.attrs \
-                            and type(method_body.declarators) == type([]) \
+                            and isinstance(method_body.declarators, list) \
                             and len(method_body.declarators) > 0:
                         class_method_list = []
                         if import_path_class_map.get(method_body.type.name) not in method_map.contains_class.keys():
@@ -275,7 +269,7 @@ def _analyze_java_file(filepath, folder_name):
                         method_map.contains_class[import_path_class_map.get(method_body.type.name)]['methods'] = class_method_list
                         # method_obj.append(method_body.declarators[0].name)
         methods_list.append(method_map)
-    file_analyze = JavaAnalyzer(filepath.replace(sep, '/').replace(folder_name + '/', ''), package_name, class_name,
+    file_analyze = JavaAnalyzer(filepath.replace(os.sep, '/').replace(folder_name + '/', ''), package_name, class_name,
                                 extends_name_path, is_controller)
     file_analyze.imports = imports
     file_analyze.implements = implements_names_list
@@ -447,7 +441,7 @@ def _in_import(java_analyze, java_file_analyze):
     class_path = f'{java_analyze.package_name}.{java_analyze.class_name}'
     class_path_analyze = f'{java_file_analyze.package_name}.{java_file_analyze.class_name}'
     if class_path_analyze == class_path \
-            or java_file_analyze.package_name == java_analyze.package_name\
+            or java_file_analyze.package_name == java_analyze.package_name \
             or java_file_analyze.extends == class_path:
         return True, True
     implements = java_analyze.implements
@@ -468,7 +462,7 @@ def _in_import(java_analyze, java_file_analyze):
 
 def _get_commit_project_files(commit_id, folder_name):
     java_file_analyze_result = {}
-    git_bash = 'cd ' + folder_name + ' && ' + 'git reset --hard ' + commit_id
+    git_bash = f'cd {folder_name} && git reset --hard {commit_id}'
     os.system(git_bash)
     time.sleep(1)
     commit_files = _get_java_files(folder_name)
@@ -480,12 +474,12 @@ def _get_commit_project_files(commit_id, folder_name):
         elif commit_file.endswith('.xml'):
             commit_file_result = parse(commit_file)
         if commit_file_result is not None:
-            java_file_analyze_result[commit_file.replace(folder_name + sep, '').replace(sep, '/')] = commit_file_result
+            java_file_analyze_result[commit_file.replace(folder_name + os.sep, '').replace(os.sep, '/')] = commit_file_result
     return java_file_analyze_result
 
 
 def _gen_treemap_data(diff_results, commit_first, commit_second):
-    flare = {'name': f"{commit_second}..{commit_first}", 'children': []}
+    flare = {'name': f'{commit_second}..{commit_first}', 'children': []}
     api_list = []
     diff_results.reverse()
     diff_filepath = []
@@ -543,9 +537,8 @@ def _class_in_method(class_name, method):
         if len(dcl_in_method) > 0:
             return True
     method_content = str(method.content)
-    if class_name + ' ' in method_content \
-            or '<' + class_name + '>' in method_content \
-            or class_name + '.' in method_content:
+    class_str_list = [f'{class_name} ', f'<{class_name}>', f'{class_name}.']
+    if any(key in method_content for key in class_str_list):
         return True
     else:
         return False
@@ -556,7 +549,7 @@ def _declarator_in_method(declarators, method):
     declarator_in_method = []
     for declarator in declarators:
         declarator_capitalize = declarator[0].upper() + declarator[1:]
-        keywords = ['.' + declarator, '.get' + declarator_capitalize + '(', '.set' + declarator_capitalize + '(']
+        keywords = [f'.{declarator}', f'.get{declarator_capitalize}(', f'.set{declarator_capitalize}(']
         if any(keyword in method_content for keyword in keywords):
             declarator_in_method.append(declarator)
     return declarator_in_method
@@ -593,7 +586,7 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                 continue
             which_java_file_extends = which_java_file_analyze.extends
             which_java_file_analyze_extends_list = [value for value in which_java_file_analyze_result.values()
-                                               if type(value) == JavaAnalyzer and value.package_name + '.' + value.class_name == which_java_file_extends]
+                                                    if type(value) == JavaAnalyzer and value.package_name + '.' + value.class_name == which_java_file_extends]
             if len(which_java_file_analyze_extends_list) > 0:
                 which_java_file_analyze_extends = which_java_file_analyze_extends_list[0]
                 which_java_file_analyze.imports.imports += which_java_file_analyze_extends.imports.imports
@@ -672,8 +665,7 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                     java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
                     if java_file_class_path not in diff_result_item.impact.keys():
                         diff_result_item.impact[java_file_class_path] = {'methods': [which_java_file_method.__dict__]}
-                    elif which_java_file_method.__dict__ not in diff_result_item.impact[java_file_class_path][
-                        'methods']:
+                    elif which_java_file_method.__dict__ not in diff_result_item.impact[java_file_class_path]['methods']:
                         diff_result_item.impact[java_file_class_path]['methods'].append(which_java_file_method.__dict__)
                     diff_result_need_add = JavaDiffResult(which_java_file_analyze_key, None, None, None, None)
                     index = -1
@@ -757,34 +749,34 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
         commit_second = commit_second[0: 7]
     t1 = datetime.datetime.now()
     logging.info('*' * 10 + 'Analyze start' + '*' * 10)
-    cur_dir = os.getcwd()
-    project_name = project_git_url.split("/")[-1].split('.git')[0]
-    folder_name = cur_dir + sep + project_name
-    git_clone_bash = 'git clone -b ' + branch_name + ' ' + project_git_url + ' ' + folder_name
-    git_pull_base = 'cd ' + folder_name + ' && git checkout ' + branch_name + ' && git pull'
-    diff_base = 'cd ' + folder_name + ' && ' \
-                + 'git diff ' + commit_second + '..' + commit_first + ' > diff_' + commit_second + '..' + commit_first + '.txt'
-    atexit.register(_clean_occupy, folder_name + sep + 'Occupy.ing')
+    project_name = project_git_url.split('/')[-1].split('.git')[0]
+    folder_name = os.path.join(os.getcwd(), project_name)
+    git_clone_bash = f'git clone -b {branch_name} {project_git_url} {folder_name}'
+    git_pull_base = f'cd {folder_name} && git checkout {branch_name} && git pull'
+    diff_base = f'cd {folder_name} && git diff {commit_second}..{commit_first} > diff_{commit_second}..{commit_first}.txt'
+    occupy_filepath = os.path.join(folder_name, 'Occupy.ing')
+    atexit.register(_clean_occupy, occupy_filepath)
+    cci_filepath = os.path.join(folder_name, f'{commit_second}..{commit_first}.cci')
     if not os.path.exists(folder_name):
         logging.info(f'Cloning project: {project_git_url}')
         os.system(git_clone_bash)
     else:
         # had analyze result, skip
-        if os.path.exists(folder_name + sep + commit_second + '..' + commit_first + '.cci'):
+        if os.path.exists(cci_filepath):
             logging.info('Has analyze result, skip!')
-            with open(folder_name + sep + commit_second + '..' + commit_first + '.cci', 'r') as read:
+            with open(cci_filepath, 'r') as read:
                 logging.info(read.read())
             sys.exit(0)
         else:
             # analyzing, wait
             wait_index = 0
-            while os.path.exists(folder_name + sep + 'Occupy.ing') and wait_index < 30:
-                logging.info(f'Analyzing by others, waiting......')
+            while os.path.exists(occupy_filepath) and wait_index < 30:
+                logging.info(f'Analyzing by others, waiting or clean occupying file manually at: {occupy_filepath} to continue')
                 time.sleep(3)
                 wait_index += 1
     logging.info('Start occupying project, and others can not analyze until released')
-    with open(folder_name + sep + 'Occupy.ing', 'w') as ow:
-        ow.write('Occupy by ' + request_user)
+    with open(occupy_filepath, 'w') as ow:
+        ow.write(f'Occupy by {request_user}')
     time.sleep(1)
     logging.info('Git pull project to HEAD')
     os.system(git_pull_base)
@@ -796,7 +788,7 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
     base_java_file_analyze_result = _get_commit_project_files(commit_second, folder_name)
     logging.info(f'Get all commit_id:{commit_first} files')
     head_java_file_analyze_result = _get_commit_project_files(commit_first, folder_name)
-    diff_txt = folder_name + sep + 'diff_' + commit_second + '..' + commit_first + '.txt'
+    diff_txt = os.path.join(folder_name, f'diff_{commit_second}..{commit_first}.txt')
     logging.info(f'Analyzing diff file, location: {diff_txt}')
     diff_results = _get_diff_results(diff_txt, head_java_file_analyze_result, base_java_file_analyze_result)
     diff_result_index = 0
@@ -810,14 +802,13 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
     logging.info(f'Analyze success, generating cci result file......')
     flare = _gen_treemap_data(diff_results, commit_first, commit_second)
     logging.info(json.dumps(flare))
-    cci_filepath = folder_name + sep + flare['name'] + '.cci'
     with open(cci_filepath, 'w') as w:
         w.write(json.dumps(flare))
     logging.info(f'Generating cci result file success, location: {cci_filepath}')
     t2 = datetime.datetime.now()
     try:
         logging.info(f'Analyze done, remove occupy, others can analyze now')
-        os.remove(folder_name + sep + 'Occupy.ing')
-    except:
+        os.remove(occupy_filepath)
+    finally:
         pass
     logging.info(f'Analyze done, spend: {t2 - t1}')
