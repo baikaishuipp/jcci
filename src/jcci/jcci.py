@@ -23,42 +23,10 @@ def _get_java_files(dir_path):
     for root, dirs, files in os.walk(dir_path):
         if '.git' in root or os.path.join('src', 'test') in root:
             continue
-        file_lists.extend([os.path.join(root, file) for file in files if file.endswith(('.java', '.xml'))])
+        file_lists.extend([os.path.join(root, file) for file in files if file.endswith(('.java', '.xml')) and not file.endswith('pom.xml')])
     return file_lists
 
-# analyze and return：{
-# 	'filepath': '/path',
-# 	'package_name': 'com.tal.wangxiao.conan.admin.controller',
-# 	'imports': {
-# 		'start': 3,
-# 		'end': 10,
-# 		'imports': ['com.tal.wangxiao.conan.common.domain.ApiInfo',
-# 			'com.tal.wangxiao.conan.common.service.ApiService'
-# 		]
-# 	},
-# 	'class_name': 'ApiController',
-# 	'extends': 'ConanBaseController',
-# 	'implements': ['a', 'b'],
-# 	'declarators': [{
-# 		'type': 'ApiService',
-# 		'name': 'apiService',
-#       'line': 46,
-#       'contains_class': 'com.tal.wangxiao.conan.common.service.ApiService'
-# 	}],
-# 	'methods': [{
-# 		'name': 'list',
-# 		'start': 55,
-# 		'end': 62,
-# 		'content': 'public ApiResponse<PageInfoResponse<List<ApiInfo>>> list(ApiInfo api).....'
-#       'contains_class': {
-#           'com.tal.wangxiao.conan.common.service.ApiService': {
-#               'methods': ['selectApiList']
-#            }
-#        }
-#       'contains_declarators': ['abc','def']
-# 	}]
-# }
-#
+
 def _analyze_java_file(filepath, folder_name):
     logging.info(f'Analyzing file: {filepath}')
     import_list = []
@@ -233,7 +201,7 @@ def _analyze_java_file(filepath, folder_name):
         method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list, method_annotation_names)
         # imports in this method or not
         method_content_str = ''.join(method_content)
-        for import_path_class in import_path_class_map.keys():
+        for import_path_class, import_path_info in import_path_class_map.items():
             if import_path_class in method_content_str:
                 contain_class_lines = [line for line in method_content if import_path_class in line]
                 contain_class_declarators = [line.strip().split('=')[0].strip()
@@ -250,9 +218,9 @@ def _analyze_java_file(filepath, folder_name):
                     class_declarators_method += [method_content_line.split(class_declarator + '.')[1].split('(')[0]
                                                  for method_content_line in method_content if
                                                  class_declarator + '.' in method_content_line and len(method_content_line.split(class_declarator + '.')[1].split('(')) > 1]
-                if import_path_class_map[import_path_class] not in method_map['contains_class']:
-                    method_map.contains_class[import_path_class_map[import_path_class]] = {}
-                method_map.contains_class[import_path_class_map[import_path_class]]['methods'] = list(set(class_declarators_method))
+                if import_path_info not in method_map['contains_class']:
+                    method_map.contains_class[import_path_info] = {}
+                method_map.contains_class[import_path_info]['methods'] = list(set(class_declarators_method))
         for declarator_tmp in fields_list:
             declarator_tmp_final = declarator_tmp
             if declarator_tmp.name in str(method_content):
@@ -386,7 +354,7 @@ def _get_diff_results(diff_file, head_java_file_analyze_result, base_java_file_a
 
 
 def _analyze_diff_patch(patch, head_java_file_analyze_result, base_java_file_analyze_result):
-    if '.git' in patch.path or 'src' + sep + 'test' + sep in patch.path or (not patch.path.endswith('.java') and not patch.path.endswith('.xml')):
+    if '.git' in patch.path or os.path.join('src', 'test') in patch.path or (not patch.path.endswith(('.java', '.xml'))):
         return None
     line_num_added, line_content_added, line_num_removed, line_content_removed = _diff_patch_lines(patch)
     java_file_path = patch.path
@@ -458,20 +426,14 @@ def _diff_patch_lines(patch):
             targets = hunk.target
             target_start = hunk.target_start
             for i in range(0, len(targets)):
-                if targets[i].startswith('+') \
-                        and not targets[i][1:].strip().startswith('*') \
-                        and not targets[i][1:].strip().startswith('//') \
-                        and not targets[i][1:].strip().startswith('import '):
+                if targets[i].startswith('+') and not targets[i][1:].strip().startswith(('*', '//', 'import ')):
                     line_num_added.append(target_start + i)
                     line_content_added.append(targets[i][1:])
         if hunk.removed > 0:
             sources = hunk.source
             source_start = hunk.source_start
             for i in range(0, len(sources)):
-                if sources[i].startswith('-') \
-                        and not sources[i][1:].strip().startswith('*') \
-                        and not sources[i][1:].strip().startswith('//') \
-                        and not sources[i][1:].strip().startswith('import '):
+                if sources[i].startswith('-') and not sources[i][1:].strip().startswith(('*', '//', 'import ')):
                     line_num_removed.append(source_start + i)
                     line_content_removed.append(sources[i][1:])
     return line_num_added, line_content_added, line_num_removed, line_content_removed
@@ -482,8 +444,8 @@ def _in_import(java_analyze, java_file_analyze):
     if java_file_analyze is None or java_file_analyze.imports is None \
             or java_file_analyze.imports.imports is None:
         return False, False
-    class_path = java_analyze.package_name + '.' + java_analyze.class_name
-    class_path_analyze = java_file_analyze.package_name + '.' + java_file_analyze.class_name
+    class_path = f'{java_analyze.package_name}.{java_analyze.class_name}'
+    class_path_analyze = f'{java_file_analyze.package_name}.{java_file_analyze.class_name}'
     if class_path_analyze == class_path \
             or java_file_analyze.package_name == java_analyze.package_name\
             or java_file_analyze.extends == class_path:
@@ -523,7 +485,7 @@ def _get_commit_project_files(commit_id, folder_name):
 
 
 def _gen_treemap_data(diff_results, commit_first, commit_second):
-    flare = {'name': commit_second + '..' + commit_first, 'children': []}
+    flare = {'name': f"{commit_second}..{commit_first}", 'children': []}
     api_list = []
     diff_results.reverse()
     diff_filepath = []
@@ -537,27 +499,27 @@ def _gen_treemap_data(diff_results, commit_first, commit_second):
         flare_children = {'name': class_name, 'children': [], 'collapsed': True}
         flare_children_list = []
         changed_methods = diff_result.changed_methods
-        for key in changed_methods.keys():
-            if changed_methods[key].get('is_api'):
-                flare_children_children = {'name': 'methods.' + key + '(' + str(changed_methods[key]['api_path']) + ')',
+        for key, method_info in changed_methods.items():
+            if method_info.get('is_api'):
+                flare_children_children = {'name': 'methods.' + key + '(' + str(method_info['api_path']) + ')',
                                            'children': [], 'collapsed': True}
-                api_list_item = {'name': str(changed_methods[key]['api_path'])}
+                api_list_item = {'name': str(method_info['api_path'])}
                 if api_list_item not in api_list:
                     api_list.append(api_list_item)
             else:
                 flare_children_children = {'name': 'methods.' + key, 'children': [], 'collapsed': True}
-            if changed_methods[key].get('impact') is not None:
-                for method_impact in changed_methods[key]['impact']:
+            if method_info.get('impact') is not None:
+                for method_impact in method_info['impact']:
                     flare_children_sub = {'name': 'impacted.' + method_impact, 'children': [],
                                           'collapsed': True}
                     if flare_children_sub not in flare_children_children['children']:
                         flare_children_children['children'].append(flare_children_sub)
             flare_children_list.append(flare_children_children)
         changed_declarators = diff_result.changed_declarators
-        for key in changed_declarators.keys():
+        for key, declarator_info in changed_declarators.items():
             flare_children_children = {'name': 'declarators.' + key, 'children': [], 'collapsed': True}
-            if changed_declarators[key].get('impact') is not None:
-                for declarator_impact in changed_declarators[key]['impact']:
+            if declarator_info.get('impact') is not None:
+                for declarator_impact in declarator_info['impact']:
                     flare_children_sub = {'name': 'impacted.' + declarator_impact, 'children': [],
                                           'collapsed': True}
                     if flare_children_sub not in flare_children_children['children']:
@@ -626,8 +588,7 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
         which_class_path = which_java_analyze.package_name + '.' + which_java_analyze.class_name
         which_implements = which_java_analyze.implements
         which_implements.append(which_class_path)
-        for which_java_file_analyze_key in which_java_file_analyze_result.keys():
-            which_java_file_analyze = which_java_file_analyze_result[which_java_file_analyze_key]
+        for which_java_file_analyze_key, which_java_file_analyze in which_java_file_analyze_result.items():
             if which_java_file_analyze_key.endswith('.xml'):
                 continue
             which_java_file_extends = which_java_file_analyze.extends
@@ -635,10 +596,9 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                                if type(value) == JavaAnalyzer and value.package_name + '.' + value.class_name == which_java_file_extends]
             if len(which_java_file_analyze_extends_list) > 0:
                 which_java_file_analyze_extends = which_java_file_analyze_extends_list[0]
-                which_java_file_analyze.imports.imports = which_java_file_analyze.imports.imports + which_java_file_analyze_extends.imports.imports
-                which_java_file_analyze.declarators = which_java_file_analyze.declarators + which_java_file_analyze_extends.declarators
-                which_java_file_analyze.methods = which_java_file_analyze.methods + [method for method in which_java_file_analyze_extends.methods
-                                                                                     if not _method_override(method, which_java_file_analyze.methods)]
+                which_java_file_analyze.imports.imports += which_java_file_analyze_extends.imports.imports
+                which_java_file_analyze.declarators += which_java_file_analyze_extends.declarators
+                which_java_file_analyze.methods += [method for method in which_java_file_analyze_extends.methods if not _method_override(method, which_java_file_analyze.methods)]
             is_in, directly = _in_import(which_java_analyze, which_java_file_analyze)
             if not is_in:
                 continue
@@ -754,8 +714,7 @@ def _diff_xml_impact(diff_result_item_index, diff_results_list, which_java_file_
         return
     namespace_java_path = namespace_java_result_list[0]
     namespace_java_result = which_java_file_analyze_result[namespace_java_path]
-    for changed_method_key in diff_result_item.changed_methods.keys():
-        changed_method = diff_result_item.changed_methods[changed_method_key]
+    for changed_method_key, changed_method in diff_result_item.changed_methods.items():
         if changed_method['diff_impact'] != mode:
             continue
         if changed_method.get('impact') is None:
@@ -765,7 +724,6 @@ def _diff_xml_impact(diff_result_item_index, diff_results_list, which_java_file_
             if namespace_java_method.name == changed_method['name'] and impact_method not in changed_method['impact']:
                 changed_method['impact'].append(impact_method)
                 namespace_java_method.diff_impact = mode
-                diff_result_item.changed_methods[changed_method_key] = changed_method
                 diff_result_need_add = JavaDiffResult(namespace_java_path, None, None, None, None)
                 index = -1
                 for i in range(len(diff_results_list) - 1, -1, -1):
