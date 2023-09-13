@@ -5,7 +5,7 @@ import json
 import os
 import sys
 import time
-
+import logging
 import javalang
 from javalang.parser import JavaSyntaxError
 from unidiff import PatchSet
@@ -14,21 +14,17 @@ from .java_analyzer import JavaAnalyzer, JavaImports, JavaMethods, JavaDeclarato
 from .mapper_parse import parse
 
 sep = os.sep
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
 # get all java files
 def _get_java_files(dir_path):
     file_lists = []
-    file_or_dir_list = os.walk(dir_path)
-    for filepath, dir_names, file_names in file_or_dir_list:
-        if '.git' in filepath or 'src' + sep + 'test' + sep in filepath:
+    for root, dirs, files in os.walk(dir_path):
+        if '.git' in root or os.path.join('src', 'test') in root:
             continue
-        for filename in file_names:
-            if filename.endswith('.java') or filename.endswith('.xml'):
-                full_file_path = filepath + sep + filename
-                file_lists.append(full_file_path)
+        file_lists.extend([os.path.join(root, file) for file in files if file.endswith(('.java', '.xml'))])
     return file_lists
-
 
 # analyze and return：{
 # 	'filepath': '/path',
@@ -64,7 +60,7 @@ def _get_java_files(dir_path):
 # }
 #
 def _analyze_java_file(filepath, folder_name):
-    print(f'{datetime.datetime.now()} : Analyzing file: {filepath}')
+    logging.info(f'Analyzing file: {filepath}')
     import_list = []
     with open(filepath, encoding='UTF-8') as fp:
         file_content = fp.read()
@@ -77,10 +73,10 @@ def _analyze_java_file(filepath, folder_name):
         types = tree.types[0]
         class_name = types.name
     except JavaSyntaxError as e:
-        print(f'{datetime.datetime.now()} : Analyze failed at {str(e.at)} cause {e.description} with file {filepath} ')
+        logging.error(f'Analyze failed at {str(e.at)} cause {e.description} with file {filepath} ')
         return None
     except Exception as ee:
-        print(f'{datetime.datetime.now()} : Analyze failed at {str(ee)} with file {filepath}')
+        logging.error(f'Analyze failed at {str(ee)} with file {filepath}')
         return None
     # is controller or not
     is_controller = False
@@ -802,7 +798,7 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
     if len(commit_second) > 7:
         commit_second = commit_second[0: 7]
     t1 = datetime.datetime.now()
-    print(datetime.datetime.now(), ':', 'Start At:', datetime.datetime.now(), flush=True)
+    logging.info('*' * 10 + 'Analyze start' + '*' * 10)
     cur_dir = os.getcwd()
     project_name = project_git_url.split("/")[-1].split('.git')[0]
     folder_name = cur_dir + sep + project_name
@@ -812,57 +808,58 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
                 + 'git diff ' + commit_second + '..' + commit_first + ' > diff_' + commit_second + '..' + commit_first + '.txt'
     atexit.register(_clean_occupy, folder_name + sep + 'Occupy.ing')
     if not os.path.exists(folder_name):
-        print(datetime.datetime.now(), ':', 'Clone from git', flush=True)
+        logging.info(f'Cloning project: {project_git_url}')
         os.system(git_clone_bash)
     else:
         # had analyze result, skip
         if os.path.exists(folder_name + sep + commit_second + '..' + commit_first + '.cci'):
-            print(datetime.datetime.now(), ':', 'Has analyze result, skip!', flush=True)
+            logging.info('Has analyze result, skip!')
             with open(folder_name + sep + commit_second + '..' + commit_first + '.cci', 'r') as read:
-                print(datetime.datetime.now(), ':', read.read(), flush=True)
+                logging.info(read.read())
             sys.exit(0)
         else:
             # analyzing, wait
             wait_index = 0
             while os.path.exists(folder_name + sep + 'Occupy.ing') and wait_index < 30:
-                print(datetime.datetime.now(), ':', 'Analyzing by others, waiting......', flush=True)
+                logging.info(f'Analyzing by others, waiting......')
                 time.sleep(3)
                 wait_index += 1
-    print(datetime.datetime.now(), ':', 'Start occupying project, and others can not analyze until released',
-          flush=True)
+    logging.info('Start occupying project, and others can not analyze until released')
     with open(folder_name + sep + 'Occupy.ing', 'w') as ow:
         ow.write('Occupy by ' + request_user)
     time.sleep(1)
-    print(datetime.datetime.now(), ':', 'Git pull project to HEAD', flush=True)
+    logging.info('Git pull project to HEAD')
     os.system(git_pull_base)
     time.sleep(1)
-    print(datetime.datetime.now(), ':', 'Git diff between ' + commit_second + ' and ' + commit_first, flush=True)
+    logging.info(f'Git diff between {commit_second} and {commit_first}')
     os.system(diff_base)
     time.sleep(1)
-    print(datetime.datetime.now(), ':', 'Get all ' + commit_second + ' files', flush=True)
+    logging.info(f'Get all commit_id:{commit_second} files')
     base_java_file_analyze_result = _get_commit_project_files(commit_second, folder_name)
-    print(datetime.datetime.now(), ':', 'Get all ' + commit_first + ' files', flush=True)
+    logging.info(f'Get all commit_id:{commit_first} files')
     head_java_file_analyze_result = _get_commit_project_files(commit_first, folder_name)
     diff_txt = folder_name + sep + 'diff_' + commit_second + '..' + commit_first + '.txt'
-    print(datetime.datetime.now(), ':', 'Get all diff file', flush=True)
+    logging.info(f'Analyzing diff file, location: {diff_txt}')
     diff_results = _get_diff_results(diff_txt, head_java_file_analyze_result, base_java_file_analyze_result)
     diff_result_index = 0
     for diff_result in diff_results:
         if diff_result is None:
             continue
-        print(datetime.datetime.now(), ':', 'Analyzing diff/impact file:' + diff_result.filepath, flush=True)
+        logging.info(f'Analyzing diff/impact file: {diff_result.filepath}')
         _diff_result_impact(diff_result_index, diff_results, head_java_file_analyze_result, 'ADD')
         _diff_result_impact(diff_result_index, diff_results, base_java_file_analyze_result, 'DEL')
         diff_result_index = diff_result_index + 1
-    print(datetime.datetime.now(), ':', 'Analyze success, generating......', flush=True)
+    logging.info(f'Analyze success, generating cci result file......')
     flare = _gen_treemap_data(diff_results, commit_first, commit_second)
-    print(json.dumps(flare), flush=True)
-    with open(folder_name + sep + flare['name'] + '.cci', 'w') as w:
+    logging.info(json.dumps(flare))
+    cci_filepath = folder_name + sep + flare['name'] + '.cci'
+    with open(cci_filepath, 'w') as w:
         w.write(json.dumps(flare))
+    logging.info(f'Generating cci result file success, location: {cci_filepath}')
     t2 = datetime.datetime.now()
     try:
-        print(datetime.datetime.now(), ':', 'Analyze done, remove occupy, others can analyze now', flush=True)
+        logging.info(f'Analyze done, remove occupy, others can analyze now')
         os.remove(folder_name + sep + 'Occupy.ing')
     except:
         pass
-    print(datetime.datetime.now(), ':', 'Analyze done, spend: ', t2 - t1, flush=True)
+    logging.info(f'Analyze done, spend: {t2 - t1}')
