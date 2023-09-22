@@ -189,7 +189,7 @@ def _analyze_java_file(filepath, folder_name):
                 if api_path.endswith('/'):
                     api_path = api_path[0:-1]
                 if len(req_method_list) > 0:
-                    api_path_list = ['[' + req_method_temp + ']' + api_path for req_method_temp in req_method_list]
+                    api_path_list += ['[' + req_method_temp + ']' + api_path for req_method_temp in req_method_list]
                 else:
                     api_path_list.append('[ALL]' + api_path)
         method_map = JavaMethods(method_name, method_obj.parameters, method_start_line, method_end_line + 1, method_content, is_api, api_path_list, method_annotation_names)
@@ -288,13 +288,18 @@ def _get_element_value(method_element):
         method_api_path = [operandl_str + operandr_str]
     elif type(method_element).__name__ == 'MemberReference':
         method_api_path = [method_element.member.replace('"', '')]
+    elif type(method_element).__name__ == 'ElementArrayValue':
+        method_api_path = _get_element_with_values(method_element)
     elif method_element.value is not None:
         method_api_path = [method_element.value.replace('"', '')]
     return method_api_path
 
 
 def _get_element_with_values(method_api_path_obj):
-    return [_get_element_value(method_api_value) for method_api_value in method_api_path_obj.values]
+    result = []
+    for method_api_value in method_api_path_obj.values:
+        result += _get_element_value(method_api_value)
+    return result
 
 
 def _get_api_part_route(part):
