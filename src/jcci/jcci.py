@@ -12,7 +12,6 @@ from unidiff import PatchSet
 from .java_analyzer import JavaAnalyzer, JavaImports, JavaMethods, JavaDeclarators, JavaDiffResult
 from .mapper_parse import parse
 
-
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
@@ -591,12 +590,45 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                 continue
             which_java_file_extends = which_java_file_analyze.extends
             which_java_file_analyze_extends_list = [value for value in which_java_file_analyze_result.values()
-                                                    if type(value) == JavaAnalyzer and value.package_name + '.' + value.class_name == which_java_file_extends]
+                                                    if type(value) == JavaAnalyzer and
+                                                    (value.package_name + '.' + value.class_name == which_java_file_extends or value.class_name == which_java_file_extends)
+                                                    ]
             if len(which_java_file_analyze_extends_list) > 0:
                 which_java_file_analyze_extends = which_java_file_analyze_extends_list[0]
                 which_java_file_analyze.imports.imports += which_java_file_analyze_extends.imports.imports
                 which_java_file_analyze.declarators += which_java_file_analyze_extends.declarators
                 which_java_file_analyze.methods += [method for method in which_java_file_analyze_extends.methods if not _method_override(method, which_java_file_analyze.methods)]
+
+                if diff_result_item.changed_declarators != {} and f'{which_java_file_analyze_extends.package_name}.{which_java_file_analyze_extends.class_name}' == which_class_path:
+                    java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
+                    if java_file_class_path not in diff_result_item.impact.keys() or diff_result_item.impact[java_file_class_path].get('declarators') is None:
+                        diff_result_item.impact[java_file_class_path] = {'declarators': [decl for decl in diff_result_item.changed_declarators.values()]}
+                    else:
+                        diff_result_item.impact[java_file_class_path]['declarators'] += [decl for decl in diff_result_item.changed_declarators.values() if decl not in diff_result_item.impact[java_file_class_path]['declarators']]
+                    diff_result_need_add = JavaDiffResult(which_java_file_analyze_key, None, None, None, None)
+                    index = -1
+                    for i in range(len(diff_results_list) - 1, -1, -1):
+                        if diff_results_list[i] is None:
+                            continue
+                        if diff_results_list[i].filepath == which_java_file_analyze_key:
+                            diff_result_need_add = JavaDiffResult(diff_results_list[i].filepath,
+                                                                  diff_results_list[i].added_line_nums,
+                                                                  diff_results_list[i].added_line_contents,
+                                                                  diff_results_list[i].removed_line_nums,
+                                                                  diff_results_list[i].removed_line_contents)
+                            diff_result_need_add.impact = diff_results_list[i].impact.copy()
+                            diff_result_need_add.changed_methods = diff_results_list[i].changed_methods.copy()
+                            diff_result_need_add.changed_declarators = diff_results_list[i].changed_declarators.copy()
+                            index = i
+                            break
+                    # or diff_result_need_add.changed_methods[
+                    #         which_java_file_method.name] != which_java_file_method.__dict__:
+                    diff_result_need_add.changed_declarators.update(diff_result_item.changed_declarators)
+                    if index > diff_result_item_index:
+                        diff_results_list[index] = diff_result_need_add
+                    else:
+                        diff_results_list.append(diff_result_need_add)
+
             is_in, directly = _in_import(which_java_analyze, which_java_file_analyze)
             if not is_in:
                 continue
@@ -668,7 +700,7 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                     else:
                         which_java_file_method.diff_impact = which_java_file_method.diff_impact + '_' + mode
                     java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
-                    if java_file_class_path not in diff_result_item.impact.keys():
+                    if java_file_class_path not in diff_result_item.impact.keys() or diff_result_item.impact[java_file_class_path].get('methods') is None:
                         diff_result_item.impact[java_file_class_path] = {'methods': [which_java_file_method.__dict__]}
                     elif which_java_file_method.__dict__ not in diff_result_item.impact[java_file_class_path]['methods']:
                         diff_result_item.impact[java_file_class_path]['methods'].append(which_java_file_method.__dict__)
