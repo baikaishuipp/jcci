@@ -4,7 +4,7 @@
 #### 介绍
 Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交对项目的影响，并生成树形图数据。
 
-PYPI: [jcci](https://pypi.org/project/jcci/)
+PYPI: [jcci](https://pypi.org/project/jcci/) （会落后github几个版本）
 
 #### 软件架构
 大致原理同Idea的Find Usage一致，通过代码改动定位代码影响，并不断遍历受影响的类和方法直至找到最上层的controller层
@@ -23,15 +23,31 @@ PYPI: [jcci](https://pypi.org/project/jcci/)
 通过传入项目git地址 分支 两次的commit id，即可分析出两次commit id之间代码改动所带来的影响，并生成树图数据方便展示影响链路。
 
 #### 安装教程
+
+##### 方式1：pypi安装（会落后github几个版本）
 ```
-pip install jcci
+$ pip install jcci
+```
+
+##### 方式2：克隆项目（推荐此种方式）
+```
+$ git clone https://github.com/baikaishuipp/jcci.git
 ```
 
 #### 使用说明
-新建python项目，新建python文件，代码如下：
 
+##### 方式1：pypi安装（会落后github几个版本）
+新建python项目，新建python文件，代码如下：
 ```
 from jcci import jcci
+
+jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+```
+
+##### 方式2：克隆项目（推荐此种方式）
+项目克隆下来后，新建python文件，引入jcci项目src目录下的jcci
+```
+from path/to/jcci/src.jcci import 
 
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ```
@@ -51,6 +67,9 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 3.  提交代码
 4.  新建 Pull Request
 
+#### 如本工具对您有帮助，请点一下右上角 star ⭐
 
 #### 沟通交流
-![微信交流群](./images/wechat.jpg) 回复：JCCI微信群交流
+扫码加微信，备注：JCCI微信群交流
+
+![微信交流群](./images/wechat.jpg) 

@@ -4,7 +4,7 @@
 #### Description
 Java code commit impact analysis, is a pure python library that analyzes the impact of two git submissions of Java projects on the project and generates tree chart data.
 
-PYPI: [jcci](https://pypi.org/project/jcci/)
+PYPI: [jcci](https://pypi.org/project/jcci/) (It will be several versions behind github)
 
 #### Software Architecture
 The general principle is the same as Find Usage of Idea, locate the impact of the code through code changes, and continuously traverse the affected classes and methods until the top controller layer is found
@@ -23,15 +23,31 @@ Then judge which classes and methods are affected according to the code lines ad
 By passing in the commit id of the project git address branch twice, the impact of code changes between the two commit ids can be analyzed, and the tree diagram data can be generated to display the affected links.
 
 #### Installation
+
+##### Method 1: pypi installation (will be several versions behind github)
 ```
-pip install jcci
+$ pip install jcci
+```
+
+##### Method 2: Clone the project (recommended)
+```
+$ git clone https://github.com/baikaishuipp/jcci.git
 ```
 
 #### Instructions
+##### Method 1: pypi installation (will be several versions behind github)
 Start a new python project, add a new python file, code example:
 
 ```
 from jcci import jcci
+
+jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+```
+
+##### Method 2: Clone the project (recommended)
+After the project is cloned, create a new python file and introduce jcci in the src directory of the jcci project.
+```
+from path/to/jcci/src.jcci import 
 
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ```
@@ -53,5 +69,9 @@ At the same time, the project will be cloned in the directory and then analyzed 
 3.  Commit your code
 4.  Create Pull Request
 
+#### If this tool is helpful to you, please click star in the upper right corner ⭐
+
 #### Communication
-![communicate via Wechat](./images/wechat.jpg) comment：JCCI communication
+Scan QR code via WeChat app, and comment：JCCI communication
+
+![communicate via Wechat](./images/wechat.jpg) 
