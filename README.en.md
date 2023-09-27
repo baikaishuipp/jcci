@@ -47,7 +47,7 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ##### Method 2: Clone the project (recommended)
 After the project is cloned, create a new python file and introduce jcci in the src directory of the jcci project.
 ```
-from path/to/jcci/src.jcci import 
+from path/to/jcci/src.jcci import jcci
 
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ```

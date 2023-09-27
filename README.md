@@ -47,7 +47,7 @@ jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ##### 方式2：克隆项目（推荐此种方式）
 项目克隆下来后，新建python文件，引入jcci项目src目录下的jcci
 ```
-from path/to/jcci/src.jcci import 
+from path/to/jcci/src.jcci import jcci
 
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 ```
