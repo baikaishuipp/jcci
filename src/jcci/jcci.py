@@ -518,6 +518,8 @@ def _gen_treemap_data(diff_results, commit_first, commit_second):
             flare_children_children = {'name': 'declarators.' + key, 'children': [], 'collapsed': True}
             if declarator_info.get('impact') is not None:
                 for declarator_impact in declarator_info['impact']:
+                    if declarator_impact == class_name + '.' + key:
+                        continue
                     flare_children_sub = {'name': 'impacted.' + declarator_impact, 'children': [],
                                           'collapsed': True}
                     if flare_children_sub not in flare_children_children['children']:
@@ -610,18 +612,30 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                            declarator.res_type == which_class_path or
                                            declarator.contains_class == which_implements[0]
                                            ]
-
-            if (diff_result_item.changed_declarators != {}
-                and which_java_file_analyze_extends is not None
-                and f'{which_java_file_analyze_extends.package_name}.{which_java_file_analyze_extends.class_name}' == which_class_path) \
-                    or len(which_java_file_declarators) > 0:
-                java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
-                if java_file_class_path not in diff_result_item.impact.keys():
-                    diff_result_item.impact[java_file_class_path] = {'declarators': [decl for decl in diff_result_item.changed_declarators.values()]}
-                elif diff_result_item.impact[java_file_class_path].get('declarators') is None:
-                    diff_result_item.impact[java_file_class_path]['declarators'] = [decl for decl in diff_result_item.changed_declarators.values()]
-                else:
-                    diff_result_item.impact[java_file_class_path]['declarators'] += [decl for decl in diff_result_item.changed_declarators.values() if decl not in diff_result_item.impact[java_file_class_path]['declarators']]
+            extends_changed = diff_result_item.changed_declarators != {}\
+                and which_java_file_analyze_extends is not None\
+                and f'{which_java_file_analyze_extends.package_name}.{which_java_file_analyze_extends.class_name}' == which_class_path
+            if extends_changed or len(which_java_file_declarators) > 0:
+                changed_declar = []
+                if extends_changed:
+                    java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
+                    if java_file_class_path not in diff_result_item.impact.keys():
+                        diff_result_item.impact[java_file_class_path] = {'declarators': [decl for decl in diff_result_item.changed_declarators.values()]}
+                    elif diff_result_item.impact[java_file_class_path].get('declarators') is None:
+                        diff_result_item.impact[java_file_class_path]['declarators'] = [decl for decl in diff_result_item.changed_declarators.values()]
+                    else:
+                        diff_result_item.impact[java_file_class_path]['declarators'] += [decl for decl in diff_result_item.changed_declarators.values() if decl not in diff_result_item.impact[java_file_class_path]['declarators']]
+                    changed_declar = [decl['name'] for decl in diff_result_item.impact[java_file_class_path]['declarators']]
+                if len(which_java_file_declarators) > 0:
+                    changed_declar += [decl.name for decl in which_java_file_declarators]
+                for tmp_declar in changed_declar:
+                    impact_declar = which_java_file_analyze.class_name + '.' + tmp_declar
+                    if diff_result_item.changed_declarators.get(tmp_declar) is None:
+                        diff_result_item.changed_declarators[tmp_declar] = {'impact': []}
+                    elif diff_result_item.changed_declarators[tmp_declar].get('impact') is None:
+                        diff_result_item.changed_declarators[tmp_declar]['impact'] = [impact_declar]
+                    else:
+                        diff_result_item.changed_declarators[tmp_declar]['impact'].append(impact_declar)
                 diff_result_need_add = JavaDiffResult(which_java_file_analyze_key, None, None, None, None)
                 index = -1
                 for i in range(len(diff_results_list) - 1, -1, -1):
