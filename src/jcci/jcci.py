@@ -3,6 +3,7 @@ import atexit
 import datetime
 import json
 import os
+import re
 import sys
 import time
 import logging
@@ -464,11 +465,10 @@ def _in_import(java_analyze, java_file_analyze):
     return False, False
 
 
-def _get_commit_project_files(commit_id, folder_name):
+def _get_commit_project_files(folder_name, git_bash):
     java_file_analyze_result = {}
-    git_bash = f'cd {folder_name} && git reset --hard {commit_id}'
     os.system(git_bash)
-    time.sleep(1)
+    time.sleep(2)
     commit_files = _get_java_files(folder_name)
 
     for commit_file in commit_files:
@@ -845,9 +845,9 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
     os.system(diff_base)
     time.sleep(1)
     logging.info(f'Get all commit_id:{commit_second} files')
-    base_java_file_analyze_result = _get_commit_project_files(commit_second, folder_name)
+    base_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name} && git reset --hard {commit_second}')
     logging.info(f'Get all commit_id:{commit_first} files')
-    head_java_file_analyze_result = _get_commit_project_files(commit_first, folder_name)
+    head_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name} && git reset --hard {commit_first}')
     diff_txt = os.path.join(folder_name, f'diff_{commit_second}..{commit_first}.txt')
     logging.info(f'Analyzing diff file, location: {diff_txt}')
     diff_results = _get_diff_results(diff_txt, head_java_file_analyze_result, base_java_file_analyze_result)
@@ -872,3 +872,70 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
     finally:
         pass
     logging.info(f'Analyze done, spend: {t2 - t1}')
+
+
+def analyze_branches(project_git_url, branch_name_first, branch_name_second, request_user):
+    t1 = datetime.datetime.now()
+    logging.info('*' * 10 + 'Analyze start' + '*' * 10)
+    project_name = project_git_url.split('/')[-1].split('.git')[0]
+    folder_name = os.path.join(os.getcwd(), project_name)
+    git_clone_bash = f'git clone -b {branch_name_first} {project_git_url} {folder_name}'
+    diff_txt = re.sub(r'[\/:?<>|]', '#', f'diff_{branch_name_second}..{branch_name_first}.txt')
+    diff_base = f'cd {folder_name} && git diff {branch_name_first} {branch_name_second} > {diff_txt}'
+    occupy_filepath = os.path.join(folder_name, 'Occupy.ing')
+    atexit.register(_clean_occupy, occupy_filepath)
+    cci_filepath = os.path.join(folder_name, re.sub(r'[\/:?<>|]', '#', f'{branch_name_second}..{branch_name_first}.cci'))
+    if not os.path.exists(folder_name):
+        logging.info(f'Cloning project: {project_git_url}')
+        os.system(git_clone_bash)
+    else:
+        # had analyze result, skip
+        if os.path.exists(cci_filepath):
+            logging.info('Has analyze result, skip!')
+            with open(cci_filepath, 'r') as read:
+                logging.info(read.read())
+            sys.exit(0)
+        else:
+            # analyzing, wait
+            wait_index = 0
+            while os.path.exists(occupy_filepath) and wait_index < 30:
+                logging.info(f'Analyzing by others, waiting or clean occupying file manually at: {occupy_filepath} to continue')
+                time.sleep(3)
+                wait_index += 1
+    logging.info('Start occupying project, and others can not analyze until released')
+    with open(occupy_filepath, 'w') as ow:
+        ow.write(f'Occupy by {request_user}')
+    time.sleep(1)
+    logging.info(f'Git diff between {branch_name_second} and {branch_name_first}')
+    os.system(diff_base)
+    time.sleep(3)
+    logging.info(f'Get all branch:{branch_name_first} files')
+    base_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name}')
+    logging.info(f'Get all branch:{branch_name_second} files')
+    head_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name} && git checkout {branch_name_second}')
+    diff_txt_path = os.path.join(folder_name, diff_txt)
+    logging.info(f'Analyzing diff file, location: {diff_txt_path}')
+    diff_results = _get_diff_results(diff_txt_path, head_java_file_analyze_result, base_java_file_analyze_result)
+    diff_result_index = 0
+    for diff_result in diff_results:
+        if diff_result is None:
+            continue
+        logging.info(f'Analyzing diff/impact file: {diff_result.filepath}')
+        _diff_result_impact(diff_result_index, diff_results, head_java_file_analyze_result, 'ADD')
+        _diff_result_impact(diff_result_index, diff_results, base_java_file_analyze_result, 'DEL')
+        diff_result_index = diff_result_index + 1
+    logging.info(f'Analyze success, generating cci result file......')
+    flare = _gen_treemap_data(diff_results, branch_name_first, branch_name_second)
+    logging.info(json.dumps(flare))
+    with open(cci_filepath, 'w') as w:
+        w.write(json.dumps(flare))
+    logging.info(f'Generating cci result file success, location: {cci_filepath}')
+    t2 = datetime.datetime.now()
+    try:
+        logging.info(f'Analyze done, remove occupy, others can analyze now')
+        os.remove(occupy_filepath)
+    finally:
+        pass
+    logging.info(f'Analyze done, spend: {t2 - t1}')
+
+
