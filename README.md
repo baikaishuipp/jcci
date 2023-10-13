@@ -2,7 +2,7 @@
 # jcci
 
 #### 介绍
-Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交对项目的影响，并生成树形图数据。
+Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交或不同分支代码差异对项目的影响，并生成树形图数据。
 
 PYPI: [jcci](https://pypi.org/project/jcci/) （会落后github几个版本）
 
@@ -41,15 +41,23 @@ $ git clone https://github.com/baikaishuipp/jcci.git
 ```
 from jcci import jcci
 
+# 同一分支不同commit比较
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+
+# 不同分支比较
+jcci.analyze_branches('git@xxxx.git','branch_1','branch_2', 'username1')
 ```
 
 ##### 方式2：克隆项目（推荐此种方式）
 项目克隆下来后，新建python文件，引入jcci项目src目录下的jcci
 ```
-from path/to/jcci/src.jcci import jcci
+from path.to.jcci.src.jcci import jcci
 
+# 同一分支不同commit比较
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+
+# 不同分支比较
+jcci.analyze_branches('git@xxxx.git','branch_1','branch_2', 'username1')
 ```
 
 运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为commit_id1...commit_id2.cci的文件，其中包含分析结果生成的树形图数据，下载[jcci-result.html](https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html) ，选择分析结果的.cci文件，即可可通过视图显示。
