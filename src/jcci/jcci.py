@@ -612,26 +612,26 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                                            declarator.res_type == which_class_path or
                                            declarator.contains_class == which_implements[0]
                                            ]
-            extends_changed = diff_result_item.changed_declarators != {}\
-                and which_java_file_analyze_extends is not None\
-                and f'{which_java_file_analyze_extends.package_name}.{which_java_file_analyze_extends.class_name}' == which_class_path
-            if extends_changed or len(which_java_file_declarators) > 0:
-                changed_declar = []
-                if extends_changed:
-                    java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
-                    if java_file_class_path not in diff_result_item.impact.keys():
-                        diff_result_item.impact[java_file_class_path] = {'declarators': [decl for decl in diff_result_item.changed_declarators.values()]}
-                    elif diff_result_item.impact[java_file_class_path].get('declarators') is None:
-                        diff_result_item.impact[java_file_class_path]['declarators'] = [decl for decl in diff_result_item.changed_declarators.values()]
-                    else:
-                        diff_result_item.impact[java_file_class_path]['declarators'] += [decl for decl in diff_result_item.changed_declarators.values() if decl not in diff_result_item.impact[java_file_class_path]['declarators']]
-                    changed_declar = [decl['name'] for decl in diff_result_item.impact[java_file_class_path]['declarators']]
-                if len(which_java_file_declarators) > 0:
-                    changed_declar += [decl.name for decl in which_java_file_declarators]
+            extends_changed = len(diff_result_item.changed_declarators.keys()) > 0 \
+                              and which_java_file_analyze_extends is not None \
+                              and f'{which_java_file_analyze_extends.package_name}.{which_java_file_analyze_extends.class_name}' == which_class_path
+            if extends_changed:
+                java_file_class_path = which_java_file_analyze.package_name + '.' + which_java_file_analyze.class_name
+                if java_file_class_path not in diff_result_item.impact.keys():
+                    diff_result_item.impact[java_file_class_path] = {'declarators': [decl for decl in diff_result_item.changed_declarators.values()]}
+                elif diff_result_item.impact[java_file_class_path].get('declarators') is None:
+                    diff_result_item.impact[java_file_class_path]['declarators'] = [decl for decl in diff_result_item.changed_declarators.values()]
+                else:
+                    diff_result_item.impact[java_file_class_path]['declarators'] += [decl for decl in diff_result_item.changed_declarators.values() if decl not in diff_result_item.impact[java_file_class_path]['declarators']]
+                changed_declar = [decl['name'] for decl in diff_result_item.impact[java_file_class_path]['declarators'] if decl.get('name') is not None]
                 for tmp_declar in changed_declar:
                     impact_declar = which_java_file_analyze.class_name + '.' + tmp_declar
                     if diff_result_item.changed_declarators.get(tmp_declar) is None:
-                        diff_result_item.changed_declarators[tmp_declar] = {'impact': []}
+                        impact_declar_obj = [decl_dict for decl_dict in which_java_file_analyze.declarators if decl_dict.name == tmp_declar][0]
+                        impact_declar_obj.diff_impact = mode
+                        impact_declar_dict = impact_declar_obj.__dict__
+                        impact_declar_dict['impact'] = []
+                        diff_result_item.changed_declarators[tmp_declar] = impact_declar_dict
                     elif diff_result_item.changed_declarators[tmp_declar].get('impact') is None:
                         diff_result_item.changed_declarators[tmp_declar]['impact'] = [impact_declar]
                     else:
@@ -652,8 +652,6 @@ def _diff_result_impact(diff_result_item_index, diff_results_list, which_java_fi
                         diff_result_need_add.changed_declarators = diff_results_list[i].changed_declarators.copy()
                         index = i
                         break
-                # or diff_result_need_add.changed_methods[
-                #         which_java_file_method.name] != which_java_file_method.__dict__:
                 diff_result_need_add.changed_declarators.update(diff_result_item.changed_declarators)
                 if index > diff_result_item_index:
                     diff_results_list[index] = diff_result_need_add
@@ -873,69 +871,70 @@ def analyze(project_git_url, branch_name, commit_first, commit_second, request_u
         pass
     logging.info(f'Analyze done, spend: {t2 - t1}')
 
-
-def analyze_branches(project_git_url, branch_name_first, branch_name_second, request_user):
-    t1 = datetime.datetime.now()
-    logging.info('*' * 10 + 'Analyze start' + '*' * 10)
-    project_name = project_git_url.split('/')[-1].split('.git')[0]
-    folder_name = os.path.join(os.getcwd(), project_name)
-    git_clone_bash = f'git clone -b {branch_name_first} {project_git_url} {folder_name}'
-    diff_txt = re.sub(r'[\/:?<>|]', '#', f'diff_{branch_name_second}..{branch_name_first}.txt')
-    diff_base = f'cd {folder_name} && git diff {branch_name_first} {branch_name_second} > {diff_txt}'
-    occupy_filepath = os.path.join(folder_name, 'Occupy.ing')
-    atexit.register(_clean_occupy, occupy_filepath)
-    cci_filepath = os.path.join(folder_name, re.sub(r'[\/:?<>|]', '#', f'{branch_name_second}..{branch_name_first}.cci'))
-    if not os.path.exists(folder_name):
-        logging.info(f'Cloning project: {project_git_url}')
-        os.system(git_clone_bash)
-    else:
-        # had analyze result, skip
-        if os.path.exists(cci_filepath):
-            logging.info('Has analyze result, skip!')
-            with open(cci_filepath, 'r') as read:
-                logging.info(read.read())
-            sys.exit(0)
-        else:
-            # analyzing, wait
-            wait_index = 0
-            while os.path.exists(occupy_filepath) and wait_index < 30:
-                logging.info(f'Analyzing by others, waiting or clean occupying file manually at: {occupy_filepath} to continue')
-                time.sleep(3)
-                wait_index += 1
-    logging.info('Start occupying project, and others can not analyze until released')
-    with open(occupy_filepath, 'w') as ow:
-        ow.write(f'Occupy by {request_user}')
-    time.sleep(1)
-    logging.info(f'Git diff between {branch_name_second} and {branch_name_first}')
-    os.system(diff_base)
-    time.sleep(3)
-    logging.info(f'Get all branch:{branch_name_first} files')
-    base_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name}')
-    logging.info(f'Get all branch:{branch_name_second} files')
-    head_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name} && git checkout {branch_name_second}')
-    diff_txt_path = os.path.join(folder_name, diff_txt)
-    logging.info(f'Analyzing diff file, location: {diff_txt_path}')
-    diff_results = _get_diff_results(diff_txt_path, head_java_file_analyze_result, base_java_file_analyze_result)
-    diff_result_index = 0
-    for diff_result in diff_results:
-        if diff_result is None:
-            continue
-        logging.info(f'Analyzing diff/impact file: {diff_result.filepath}')
-        _diff_result_impact(diff_result_index, diff_results, head_java_file_analyze_result, 'ADD')
-        _diff_result_impact(diff_result_index, diff_results, base_java_file_analyze_result, 'DEL')
-        diff_result_index = diff_result_index + 1
-    logging.info(f'Analyze success, generating cci result file......')
-    flare = _gen_treemap_data(diff_results, branch_name_first, branch_name_second)
-    logging.info(json.dumps(flare))
-    with open(cci_filepath, 'w') as w:
-        w.write(json.dumps(flare))
-    logging.info(f'Generating cci result file success, location: {cci_filepath}')
-    t2 = datetime.datetime.now()
-    try:
-        logging.info(f'Analyze done, remove occupy, others can analyze now')
-        os.remove(occupy_filepath)
-    finally:
-        pass
-    logging.info(f'Analyze done, spend: {t2 - t1}')
+#
+# has some bug, can't use
+# def analyze_branches(project_git_url, branch_name_first, branch_name_second, request_user):
+#     t1 = datetime.datetime.now()
+#     logging.info('*' * 10 + 'Analyze start' + '*' * 10)
+#     project_name = project_git_url.split('/')[-1].split('.git')[0]
+#     folder_name = os.path.join(os.getcwd(), project_name)
+#     git_clone_bash = f'git clone -b {branch_name_first} {project_git_url} {folder_name}'
+#     diff_txt = re.sub(r'[\/:?<>|]', '#', f'diff_{branch_name_second}..{branch_name_first}.txt')
+#     diff_base = f'cd {folder_name} && git diff {branch_name_first} {branch_name_second} > {diff_txt}'
+#     occupy_filepath = os.path.join(folder_name, 'Occupy.ing')
+#     atexit.register(_clean_occupy, occupy_filepath)
+#     cci_filepath = os.path.join(folder_name, re.sub(r'[\/:?<>|]', '#', f'{branch_name_second}..{branch_name_first}.cci'))
+#     if not os.path.exists(folder_name):
+#         logging.info(f'Cloning project: {project_git_url}')
+#         os.system(git_clone_bash)
+#     else:
+#         # had analyze result, skip
+#         if os.path.exists(cci_filepath):
+#             logging.info('Has analyze result, skip!')
+#             with open(cci_filepath, 'r') as read:
+#                 logging.info(read.read())
+#             sys.exit(0)
+#         else:
+#             # analyzing, wait
+#             wait_index = 0
+#             while os.path.exists(occupy_filepath) and wait_index < 30:
+#                 logging.info(f'Analyzing by others, waiting or clean occupying file manually at: {occupy_filepath} to continue')
+#                 time.sleep(3)
+#                 wait_index += 1
+#     logging.info('Start occupying project, and others can not analyze until released')
+#     with open(occupy_filepath, 'w') as ow:
+#         ow.write(f'Occupy by {request_user}')
+#     time.sleep(1)
+#     logging.info(f'Git diff between {branch_name_second} and {branch_name_first}')
+#     os.system(diff_base)
+#     time.sleep(3)
+#     logging.info(f'Get all branch:{branch_name_first} files')
+#     base_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name}')
+#     logging.info(f'Get all branch:{branch_name_second} files')
+#     head_java_file_analyze_result = _get_commit_project_files(folder_name, f'cd {folder_name} && git checkout {branch_name_second}')
+#     diff_txt_path = os.path.join(folder_name, diff_txt)
+#     logging.info(f'Analyzing diff file, location: {diff_txt_path}')
+#     diff_results = _get_diff_results(diff_txt_path, head_java_file_analyze_result, base_java_file_analyze_result)
+#     diff_result_index = 0
+#     for diff_result in diff_results:
+#         if diff_result is None:
+#             continue
+#         logging.info(f'Analyzing diff/impact file: {diff_result.filepath}')
+#         _diff_result_impact(diff_result_index, diff_results, head_java_file_analyze_result, 'ADD')
+#         _diff_result_impact(diff_result_index, diff_results, base_java_file_analyze_result, 'DEL')
+#         diff_result_index = diff_result_index + 1
+#     logging.info(f'Analyze success, generating cci result file......')
+#     flare = _gen_treemap_data(diff_results, branch_name_first, branch_name_second)
+#     logging.info(json.dumps(flare))
+#     with open(cci_filepath, 'w') as w:
+#         w.write(json.dumps(flare))
+#     logging.info(f'Generating cci result file success, location: {cci_filepath}')
+#     t2 = datetime.datetime.now()
+#     try:
+#         logging.info(f'Analyze done, remove occupy, others can analyze now')
+#         os.remove(occupy_filepath)
+#     finally:
+#         pass
+#     logging.info(f'Analyze done, spend: {t2 - t1}')
 
 

@@ -2,7 +2,7 @@
 # jcci
 
 #### 介绍
-Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交或不同分支代码差异对项目的影响，并生成树形图数据。
+Java代码提交影响分析，是一个纯python库，分析Java项目的两次git提交差异对项目的影响，并生成树形图数据。
 
 PYPI: [jcci](https://pypi.org/project/jcci/) （会落后github几个版本）
 
