@@ -44,8 +44,6 @@ from jcci import jcci
 # 同一分支不同commit比较
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 
-# 不同分支比较
-jcci.analyze_branches('git@xxxx.git','branch_1','branch_2', 'username1')
 ```
 
 ##### 方式2：克隆项目（推荐此种方式）
@@ -56,8 +54,6 @@ from path.to.jcci.src.jcci import jcci
 # 同一分支不同commit比较
 jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
 
-# 不同分支比较
-jcci.analyze_branches('git@xxxx.git','branch_1','branch_2', 'username1')
 ```
 ###### 参数说明：
 * project_git_url - 项目git地址，代码使用本机git配置clone代码，确保本机git权限或通过用户名密码/token的方式拼接url来clone代码。示例：https://userName:password@github.com/xxx.git 或 https://token@github.com/xxx.git
