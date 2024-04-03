@@ -71,7 +71,8 @@ class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java
 
 运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为.cci的文件，其中包含分析结果生成的关系图数据，下载[jcci-result.html](https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html) ，选择分析结果的.cci文件，即可可通过视图显示。
 
-#### 开源不易，如本工具对您有帮助，请点一下右上角 star ⭐ , 谢谢~~~
+#### 开源不易，如本工具对您有帮助，请点一下右上角 star ⭐ , 也可以请作者喝杯咖啡，谢谢~~~
+![请作者喝咖啡](./images/donation.png)
 
 #### 沟通交流
 扫码加微信，备注：JCCI微信群交流
