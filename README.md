@@ -23,7 +23,7 @@ PYPI: [jcci](https://pypi.org/project/jcci/) （会落后github几个版本）
 通过传入项目git地址 分支 两次的commit id，即可分析出两次commit id之间代码改动所带来的影响，并生成树图数据方便展示影响链路。
 
 #### 安装教程
-
+要求python >= 3.9 , sqlite3 >= 3.38
 ##### 方式1：pypi安装（会落后github几个版本）
 ```
 $ pip install jcci
@@ -39,40 +39,37 @@ $ git clone https://github.com/baikaishuipp/jcci.git
 ##### 方式1：pypi安装（会落后github几个版本）
 新建python项目，新建python文件，代码如下：
 ```
-from jcci import jcci
+from jcci.analyze import JCCI
 
 # 同一分支不同commit比较
-jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+commit_analyze = JCCI('git@xxxx.git', 'username1')
+commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
+
+# 分析一个类的方法影响, analyze_class_method方法最后参数为方法所在行数，不同方法行数用逗号分割，不填则分析完整类影响
+class_analyze = JCCI('git@xxxx.git', 'username1')
+class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
 ```
 
 ##### 方式2：克隆项目（推荐此种方式）
 项目克隆下来后，新建python文件，引入jcci项目src目录下的jcci
 ```
-from path.to.jcci.src.jcci import jcci
+from path.to.jcci.src.jcci.analyze import JCCI
 
 # 同一分支不同commit比较
-jcci.analyze('git@xxxx.git','master','commit_id1','commit_id2', 'username1')
+commit_analyze = JCCI('git@xxxx.git', 'username1')
+commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
+
+# 分析一个类的方法影响, analyze_class_method方法最后参数为方法所在行数，不同方法行数用逗号分割，不填则分析完整类影响
+class_analyze = JCCI('git@xxxx.git', 'username1')
+class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
 ```
 ###### 参数说明：
 * project_git_url - 项目git地址，代码使用本机git配置clone代码，确保本机git权限或通过用户名密码/token的方式拼接url来clone代码。示例：https://userName:password@github.com/xxx.git 或 https://token@github.com/xxx.git
 * username1 - 随便输入，为了避免并发分析同一项目导致结果错误，用户1分析项目A时，用户B需要等待，所以设置了该参数
 
-运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为commit_id1...commit_id2.cci的文件，其中包含分析结果生成的树形图数据，下载[jcci-result.html](https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html) ，选择分析结果的.cci文件，即可可通过视图显示。
-
-##### CCI result
-![result](./images/cci-result.png)
-
-##### CCI result tree view
-![treeView](./images/cii-result-tree.png)
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为.cci的文件，其中包含分析结果生成的关系图数据，下载[jcci-result.html](https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html) ，选择分析结果的.cci文件，即可可通过视图显示。
 
 #### 开源不易，如本工具对您有帮助，请点一下右上角 star ⭐ , 谢谢~~~
 

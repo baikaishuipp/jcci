@@ -9,91 +9,46 @@
   <body>
     <div>Choose CCI Result File
       <input type="file" id="datafile">
-      展示方式
-      <select id="select">
-        <option value="tree">树形图</option>
-        <option value="graph">关系图</option>
-      </select>
+<!--      展示方式-->
+<!--      <select id="select">-->
+<!--        <option value="tree">树形图</option>-->
+<!--        <option value="graph">关系图</option>-->
+<!--      </select>-->
     </div>
     <div id="main" style="width: 100%;height: 800px;"></div>
     <script type="text/javascript">
       var cciFile = document.getElementById('datafile');
       var myChart = echarts.init(document.getElementById('main'));
-      const select = document.getElementById('select');
-      var treeData = {}
       var graphData = []
       var graphLinks = []
-      var symbolSize = 30
-      var optionTree = {
-        tooltip: {
-          trigger: 'item',
-          triggerOn: 'mousemove'
-        },
-        series: [
-          {
-            type: 'tree',
-            data: [treeData],
-            top: '1%',
-            left: '7%',
-            bottom: '1%',
-            right: '20%',
-            symbolSize: 7,
-            label: {
-              position: 'left',
-              verticalAlign: 'middle',
-              align: 'right',
-              fontSize: 14
-            },
-            leaves: {
-              label: {
-                position: 'right',
-                verticalAlign: 'middle',
-                align: 'left'
-              }
-            },
-            emphasis: {
-              focus: 'descendant'
-            },
-            expandAndCollapse: true,
-            animationDuration: 550,
-            animationDurationUpdate: 750
-          }
-        ]
-      };
-      myChart.setOption(optionTree);
+      var graphCategories = []
 
       var optionGraph = {
         tooltip: {},
-        animationDurationUpdate: 1500,
-        animationEasingUpdate: 'quinticInOut',
+        legend: [
+          {
+            data: []
+          }
+        ],
         series: [
         {
           type: 'graph',
           layout: 'none',
-          symbolSize: symbolSize,
-          roam: true,
-          label: {
-              show: true
-          },
+          data: [],
+          links: [],
+          categories: [],
           edgeSymbol: ['circle', 'arrow'],
           edgeSymbolSize: [4, 10],
           edgeLabel: {
-              fontSize: 20
+            fontSize: 20
           },
-          data: [],
-          links: [],
-          emphasis: {
-            focus: 'adjacency',
-            label: {
-                position: 'right',
-                show: true
-            }
+          roam: true,
+          labelLayout: {
+            hideOverlap: true
           },
           lineStyle: {
             color: 'source',
-            width: 0.5,
-            curveness: 0.3,
-            opacity: 0.7
+            curveness: 0.3
           }
         }]
       }
@@ -107,141 +62,19 @@
 
         reader.addEventListener('load', event => {
           let content = event.target.result;
-          select.value = 'tree'
-          treeData = JSON.parse(content)
-          let treeDataCopy = JSON.parse(content)
-          treeDataCopy['children'].shift()
-          let covertData = convertTreeToGraph(treeDataCopy)
-          graphData = covertData.data
-          graphLinks = covertData.links
-          optionTree.series[0].data = [treeData]
-          myChart.setOption(optionTree);
+          let covertData = JSON.parse(content)
+          optionGraph.series[0].data = covertData.nodes
+          optionGraph.series[0].links = covertData.links
+          graphCategories = covertData.categories
+          optionGraph.series[0].categories = graphCategories
+          let graphLegend = graphCategories.map(function (a) {
+            return a.name;
+          })
+          optionGraph.legend[0].data = graphLegend
+          myChart.setOption(optionGraph);
         })
-
         reader.readAsText(file);
       }
-
-      function getNodeName(name, sourceName) {
-        if (name.startsWith('impacted.')) {
-            if (sourceName.includes('.')) {
-                name = name.slice(9);
-            }
-        }
-        if (name.startsWith('methods.')) {
-            name = sourceName + name.slice(7);
-        }
-        if (name.startsWith('declarators.')) {
-            name = sourceName + name.slice(11);
-        }
-        return name;
-      }
-
-      function genColorByName(name) {
-        const baseName = name.split('.')[0];
-        const hashObject = CryptoJS.MD5(baseName).toString().toUpperCase();
-        const hexColor = hashObject.slice(0, 6);
-        return '#' + hexColor;
-      }
-
-      function countTargetInLinks(nodeName, links) {
-        var count = 0;
-        for(var i=0; i < links.length; i++) {
-          var link = links[i]
-          if(link.target === nodeName) {
-            count = count + 1
-          }
-        }
-        return count
-      }
-
-      function adjustNodeObj(nodeObj, nodes, rate) {
-        for(var i=0; i < nodes.length; i++) {
-          if(nodes[i].x === nodeObj.x) {
-            if(Math.abs(nodes[i].y - nodeObj.y) < 50) {
-              nodeObj.y = nodeObj.y + 50*rate
-            }
-          }
-        }
-      }
-
-      function countTreeDataChildrenCount(treeData) {
-        var count = 0
-        for(var i=0; i < treeData.children.length; i++) {
-          count = count + treeData.children[i].children.length
-        }
-        return count
-      }
-
-      function convertTreeToGraph(treeData) {
-        const nodes = [];
-        const links = [];
-        const childrenCount = countTreeDataChildrenCount(treeData)
-        var rate = 1
-        if(childrenCount > 20) {
-          symbolSize = symbolSize / (childrenCount / 20)
-          rate = rate / (childrenCount / 20)
-        } else {
-          symbolSize = 30
-        }
-        function traverse(parentName, node, level, parentX, parentY) {
-          // Create node object
-          const nodeName = getNodeName(node.name, parentName);
-          const targetCount = countTargetInLinks(nodeName, links);
-          const nodeObj = {
-            name: nodeName,
-            x: parentX + 100,
-            y: parentY + 100,
-            itemStyle: {
-              color: genColorByName(nodeName),
-            },
-          };
-          adjustNodeObj(nodeObj, nodes, rate);
-          const nodeExist = nodes.find((n) => n.name === nodeName);
-          let offset = 0;
-          if (!nodeExist) {
-            nodes.push(nodeObj);
-          } else {
-            offset = 100*rate;
-          }
-
-          // Traverse children nodes
-          const children = node.children || [];
-          const numChildren = children.length;
-          if (numChildren > 0) {
-            const yRange = [
-              parentY - ((numChildren - 1) * 40*rate) / 2,
-              parentY + ((numChildren - 1) * 70*rate) / 2,
-            ];
-            for (let i = 0; i < numChildren; i++) {
-              const yChild = yRange[0] + i * 50*rate;
-              traverse(nodeName, children[i], level + 1, nodeObj.x + offset, yChild);
-              const link = {
-                source: nodeName,
-                target: getNodeName(children[i].name, nodeName),
-              };
-              links.push(link);
-            }
-          }
-        }
-        traverse('', treeData, 0, 0, 0);
-        return {
-          data: nodes,
-          links: links,
-        };
-      }
-
-
-      select.addEventListener('change', ()=>{
-        if (select.value === 'tree') {
-          optionTree.series[0].data = [treeData]
-          myChart.setOption(optionTree);
-        } else {
-          optionGraph.series[0].data = graphData
-          optionGraph.series[0].links = graphLinks
-          optionGraph.series[0].symbolSize = symbolSize
-          myChart.setOption(optionGraph);
-        }
-      });
 
       cciFile.addEventListener('change', readInputFile, false);
     </script>
