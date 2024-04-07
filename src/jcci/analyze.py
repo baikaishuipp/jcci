@@ -308,13 +308,15 @@ class JCCI(object):
                 method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE method_id = {need_analyze_obj.get("method_id")}')[0]
                 is_override_method = 'Override' in method_db['annotations']
                 if is_override_method:
+
                     if class_entity['extends_class']:
-                    abstract_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
-                    if abstract_package_class:
-                        extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_param, commit_or_branch)
-                        for method in extends_methods:
-                            method['class_id'] = class_id
-                        entity_impacted_methods += extends_methods
+                        abstract_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
+                        if abstract_package_class:
+                            extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_param, commit_or_branch)
+                            for method in extends_methods:
+                                method['class_id'] = class_id
+                            entity_impacted_methods += extends_methods
+
                     if class_entity['implements']:
                         class_implements = class_entity['implements'].split(',')
                         class_implements_obj = self.sqlite.select_data(f'''select c.package_name , c.class_name from methods m left join class c on c.class_id = m.class_id 
