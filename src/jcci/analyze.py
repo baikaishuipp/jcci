@@ -461,6 +461,7 @@ class JCCI(object):
                         self._replace_extends_class(new_lst2, results)
                 results.append(new_lst)
                 self._replace_extends_class(new_lst, results)
+        results.append([constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN for _ in lst])
         return results
 
     def _replace_extends_class(self, new_lst, results):

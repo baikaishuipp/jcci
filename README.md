@@ -80,3 +80,7 @@ class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java
 扫码加微信，备注：JCCI微信群交流
 
 ![微信交流群](./images/wechat.jpg) 
+
+#### Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=baikaishuipp/jcci&type=Date)](https://star-history.com/#baikaishuipp/jcci&Date)
