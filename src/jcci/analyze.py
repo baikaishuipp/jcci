@@ -128,8 +128,7 @@ class JCCI(object):
                         break
                 if ignore:
                     continue
-                filepath.replace('\\', '/')
-                file_lists.append(filepath)
+                file_lists.append(filepath.replace('\\', '/'))
         return file_lists
 
     # Step 3.3
@@ -151,7 +150,7 @@ class JCCI(object):
 
     # Step 4.1
     def _xml_diff_analyze(self, patch_filepath, diff_parse_obj: dict):
-        xml_file_path_list = [filepath for filepath in self.xml_parse_results_new.keys() if self.file_path.endswith(patch_filepath)]
+        xml_file_path_list = [filepath for filepath in self.xml_parse_results_new.keys() if filepath.endswith(patch_filepath)]
         if not xml_file_path_list:
             return
         xml_file_path = xml_file_path_list[0]
@@ -304,16 +303,26 @@ class JCCI(object):
                 method_param = need_analyze_obj.get('method_param')
                 method_name: str = method_param.split('(')[0]
                 method_node_id = need_analyze_obj.get('method_node_id')
+                source_node_id = method_node_id
                 entity_impacted_methods = self._get_method_invocation_in_methods_table(package_class, method_param, commit_or_branch)
                 method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE method_id = {need_analyze_obj.get("method_id")}')[0]
                 is_override_method = 'Override' in method_db['annotations']
-                if is_override_method and class_entity['extends_class']:
+                if is_override_method:
+                    if class_entity['extends_class']:
                     abstract_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
                     if abstract_package_class:
                         extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_param, commit_or_branch)
                         for method in extends_methods:
                             method['class_id'] = class_id
                         entity_impacted_methods += extends_methods
+                    if class_entity['implements']:
+                        class_implements = class_entity['implements'].split(',')
+                        class_implements_obj = self.sqlite.select_data(f'''select c.package_name , c.class_name from methods m left join class c on c.class_id = m.class_id 
+                                                where c.project_id = {self.project_id} and m.method_name = '{method_name}' and c.class_name in ("{'","'.join(class_implements)}")''')
+                        if class_implements_obj:
+                            implements_package_class = class_implements_obj[0].get('package_name') + '.' + class_implements_obj[0].get('class_name')
+                            implements_methods = self._get_method_invocation_in_methods_table(implements_package_class, method_param, commit_or_branch)
+                            entity_impacted_methods += implements_methods
                 else:
                     class_method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {class_id} and method_name = "{method_name}"')
                     if not class_method_db:
@@ -321,7 +330,6 @@ class JCCI(object):
                         if extends_package_class:
                             extends_methods = self._get_method_invocation_in_methods_table(extends_package_class, method_param, commit_or_branch)
                             entity_impacted_methods += extends_methods
-                source_node_id = method_node_id
             if not entity_impacted_methods:
                 return
             self._handle_impacted_methods(entity_impacted_methods, source_node_id)
@@ -524,9 +532,16 @@ class JCCI(object):
             'method_param': method_param,
             'commit_or_branch': commit_or_branch
         }
-        if need_analyze_entity not in self.need_analyze_obj_list:
+        is_exist = [obj for obj in self.need_analyze_obj_list if self.check_dict_keys_equal_values(need_analyze_entity, obj)]
+        if not is_exist:
             need_analyze_entity.update(mapper_extend_dict)
             self.need_analyze_obj_list.append(need_analyze_entity)
+
+    def check_dict_keys_equal_values(self, dict1, dict2):
+        for key in dict1:
+            if key in dict2 and dict1[key] != dict2[key]:
+                return False
+        return True
 
     def _draw_and_write_result(self):
         if self.view.nodes:
