@@ -452,7 +452,6 @@ class JCCI(object):
                 new_lst = lst[:]  # 创建原始列表的副本
                 for idx in replace_indices:
                     if new_lst[idx].lower() not in constant.JAVA_BASIC_TYPE:
-                        new_lst[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
                         if new_lst[idx].startswith('List'):
                             new_lst2 = new_lst[:]
                             new_lst2[idx] = 'ArrayList'
@@ -465,11 +464,12 @@ class JCCI(object):
                             new_lst2 = new_lst[:]
                             new_lst2[idx] = 'HashSet'
                             results.append(new_lst2)
+                        new_lst[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
                     else:
-                        new_lst[idx] = 'null'
                         new_lst2 = new_lst[:]
                         new_lst2[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
                         results.append(new_lst2)
+                        new_lst[idx] = 'null'
                         self._replace_extends_class(new_lst2, results)
                 results.append(new_lst)
                 self._replace_extends_class(new_lst, results)
