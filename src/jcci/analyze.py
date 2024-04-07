@@ -453,6 +453,18 @@ class JCCI(object):
                 for idx in replace_indices:
                     if new_lst[idx].lower() not in constant.JAVA_BASIC_TYPE:
                         new_lst[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
+                        if new_lst[idx].startswith('List'):
+                            new_lst2 = new_lst[:]
+                            new_lst2[idx] = 'ArrayList'
+                            results.append(new_lst2)
+                        elif new_lst[idx].startswith('Map'):
+                            new_lst2 = new_lst[:]
+                            new_lst2[idx] = 'HashMap'
+                            results.append(new_lst2)
+                        elif new_lst[idx].startswith('Set'):
+                            new_lst2 = new_lst[:]
+                            new_lst2[idx] = 'HashSet'
+                            results.append(new_lst2)
                     else:
                         new_lst[idx] = 'null'
                         new_lst2 = new_lst[:]
