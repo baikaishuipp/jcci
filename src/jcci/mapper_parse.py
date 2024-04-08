@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
 import xml.etree.ElementTree as ET
-
+import re
 
 class Mapper(object):
     def __init__(self, namespace, result_maps, sqls, statements):
@@ -28,6 +28,14 @@ class MapperStatement(MapperElement):
         self.result_map = result_map
         self.include_sql = include_sql
 
+def extract_value(string, tag):
+    pattern = tag + r'\s*=\s*"(\w+)"'
+    match = re.search(pattern, string)
+    if match:
+        value = match.group(1)
+        return value
+    else:
+        return None
 
 def parse(filepath):
     # 读取XML文件内容
@@ -93,9 +101,9 @@ def parse(filepath):
             if f'<{statement_element.tag} id="{statement_id}"' in line:
                 start_line = i
             if f'resultMap="' in line and start_line != 0:
-                result_map = line.split('resultMap="')[1].split('"')[0]
+                result_map = extract_value(line, 'resultMap')
             if line.strip().startswith('<include') and start_line != 0:
-                include_sql = line.split('refid="')[1].split('"')[0]
+                include_sql = extract_value(line, 'refid')
             if f'</{statement_element.tag}>' in line and start_line != 0:
                 end_line = i
                 break
