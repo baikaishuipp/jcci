@@ -640,7 +640,7 @@ class JavaParse(object):
         # 处理 field 信息
         field_list = self._parse_fields(tree.types[0].fields, package_name, class_id, import_map)
         field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
-        import_map = dict((k, v) for k, v in import_map.items())
+        import_map = dict((k, v) for k, v in import_map.items() if v.startswith('com.') or v.startswith('cn.'))
 
         # 将extend class的field导进来
         extends_class_fields_map = self._get_extends_class_fields_map(class_id)
