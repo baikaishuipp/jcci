@@ -475,47 +475,10 @@ class JCCI(object):
         param_type_list = param_type_str.split(',')
         if not param_type_list:
             return method_param_list
-        all_possible_method_param_list = []
-        self._replace_with_unknown(param_type_list, all_possible_method_param_list, 0)
-        lst = list(set(tuple(sub_list) for sub_list in all_possible_method_param_list))
-        for param_type_list in lst:
+        all_possible_method_param_list = self._replace_with_null_unknown(param_type_list)
+        for param_type_list in all_possible_method_param_list:
             method_param_list.append(f'{method_name}({",".join(param_type_list)})')
         return method_param_list
-
-    def _replace_with_null(self, lst):
-        # lst = [item.split('<')[0].replace('<', '').replace('>', '') for item in lst]
-        results = []
-        lowercase_indices = [i for i, s in enumerate(lst) if s and s[0].islower()]  # 首字母小写的元素索引
-
-        for num_replacements in range(len(lst) + 1):  # 遍历替换0到所有元素的情况
-            replaceable_indices = [i for i in range(len(lst)) if i not in lowercase_indices]  # 可替换的元素索引
-            for replace_indices in combinations(replaceable_indices, num_replacements):  # 所有可能的替换索引组合
-                new_lst = lst[:]  # 创建原始列表的副本
-                for idx in replace_indices:
-                    if new_lst[idx].lower() not in constant.JAVA_BASIC_TYPE:
-                        if new_lst[idx].startswith('List'):
-                            new_lst2 = new_lst[:]
-                            new_lst2[idx] = 'ArrayList'
-                            results.append(new_lst2)
-                        elif new_lst[idx].startswith('Map'):
-                            new_lst2 = new_lst[:]
-                            new_lst2[idx] = 'HashMap'
-                            results.append(new_lst2)
-                        elif new_lst[idx].startswith('Set'):
-                            new_lst2 = new_lst[:]
-                            new_lst2[idx] = 'HashSet'
-                            results.append(new_lst2)
-                        new_lst[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
-                    else:
-                        new_lst2 = new_lst[:]
-                        new_lst2[idx] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
-                        results.append(new_lst2)
-                        new_lst[idx] = 'null'
-                        self._replace_extends_class(new_lst2, results)
-                results.append(new_lst)
-                self._replace_extends_class(new_lst, results)
-        results.append([constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN for _ in lst])
-        return results
 
     def _replace_extends_class(self, new_lst, results):
         for i in range(0, len(new_lst)):
@@ -538,7 +501,18 @@ class JCCI(object):
         return is_duplicate
 
     # Step 5.4.1.1
-    def _replace_with_unknown(self, lst: list, results: list, idx: int):
+    def _replace_with_null_unknown(self, lst: list):
+        need_replace_list = []
+        replaced_list = []
+        results = []
+        self._replace_params_with_unknown(lst, results, 0, need_replace_list)
+        for item in need_replace_list:
+            if item not in replaced_list:
+                replaced_list.append(item)
+                self._replace_params_with_unknown(item['list'], results, item['index'], need_replace_list)
+        return list(set(tuple(sub_list) for sub_list in results))
+
+    def _replace_params_with_unknown(self, lst: list, results: list, idx: int, need_replace_list: list):
         # data = [item.split('<')[0].replace('<', '').replace('>', '') for item in data]
         for i in range(idx, len(lst)):
             new_lst = lst[:]
@@ -554,20 +528,20 @@ class JCCI(object):
                     new_lst2[i] = 'HashSet'
                 if not self._is_duplicate_item(new_lst2, results):
                     results.append(new_lst2)
-                    self._replace_with_unknown(new_lst2, results, idx)
+                    need_replace_list.append({'list': new_lst2, 'index': idx})
             else:
                 if new_lst[i][0].isupper() and new_lst[i] != 'String':
                     new_lst2 = new_lst[:]
                     new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
                     if not self._is_duplicate_item(new_lst2, results):
                         results.append(new_lst2)
-                        self._replace_with_unknown(new_lst2, results, idx)
+                        need_replace_list.append({'list': new_lst2, 'index': idx})
             for el in ['null', 'unknown']:
                 new_lst_tmp = new_lst[:]
                 new_lst_tmp[i] = el
                 if not self._is_duplicate_item(new_lst_tmp, results):
                     results.append(new_lst_tmp)
-                    self._replace_with_unknown(new_lst_tmp, results, min(idx, len(new_lst) - 1))
+                    need_replace_list.append({'list': new_lst_tmp, 'index': min(idx, len(new_lst) - 1)})
 
     # Step 5.5
     def _get_method_param_string(self, method_db: dict):
