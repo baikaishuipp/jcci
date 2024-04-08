@@ -51,6 +51,9 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 class_analyze = JCCI('git@xxxx.git', 'username1')
 class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
+# 不同分支比较
+branch_analyze = JCCI('git@xxxx.git', 'username1')
+branch_analyze.analyze_two_branch('branch_new','branch_old')
 ```
 
 ##### 方式2：克隆项目（推荐此种方式）
@@ -66,6 +69,9 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 class_analyze = JCCI('git@xxxx.git', 'username1')
 class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
+# 不同分支比较
+branch_analyze = JCCI('git@xxxx.git', 'username1')
+branch_analyze.analyze_two_branch('branch_new','branch_old')
 ```
 ###### 参数说明：
 * project_git_url - 项目git地址，代码使用本机git配置clone代码，确保本机git权限或通过用户名密码/token的方式拼接url来clone代码。示例：https://userName:password@github.com/xxx.git 或 https://token@github.com/xxx.git

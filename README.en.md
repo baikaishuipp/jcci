@@ -49,6 +49,9 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 class_analyze = JCCI('git@xxxx.git', 'username1')
 class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
+# Compare different branches
+branch_analyze = JCCI('git@xxxx.git', 'username1')
+branch_analyze.analyze_two_branch('branch_new','branch_old')
 ```
 
 ##### Method 2: Clone the project (recommended)
@@ -64,6 +67,9 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 class_analyze = JCCI('git@xxxx.git', 'username1')
 class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
+# Compare different branches
+branch_analyze = JCCI('git@xxxx.git', 'username1')
+branch_analyze.analyze_two_branch('branch_new','branch_old')
 ```
 
 ###### Parameter Description:
