@@ -575,7 +575,7 @@ class JavaParse(object):
             var_type = import_map.get(var)
             self._add_entity_used_to_method_invocation(method_invocation, var_type, section)
             return var_type
-        return var
+        return PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
 
     def _get_extends_class_fields_map(self, class_id: int):
         class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE class_id = {class_id}')[0]

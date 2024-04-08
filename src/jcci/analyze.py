@@ -436,8 +436,10 @@ class JCCI(object):
         param_type_list = param_type_str.split(',')
         if not param_type_list:
             return method_param_list
-        all_possible_method_param_list = self._replace_with_null(param_type_list)
-        for param_type_list in all_possible_method_param_list:
+        all_possible_method_param_list = []
+        self._replace_with_unknown(param_type_list, all_possible_method_param_list, 0)
+        lst = list(set(tuple(sub_list) for sub_list in all_possible_method_param_list))
+        for param_type_list in lst:
             method_param_list.append(f'{method_name}({",".join(param_type_list)})')
         return method_param_list
 
@@ -488,26 +490,45 @@ class JCCI(object):
                 result_item[i] = extends_package_class
                 results.append(result_item)
 
+    def _is_duplicate_item(self, new_lst, lst):
+        is_duplicate = False
+        for item in lst:
+            if item == new_lst:
+                is_duplicate = True
+                break
+        return is_duplicate
+
     # Step 5.4.1.1
-    def _replace_with_unknown(self, data: list):
+    def _replace_with_unknown(self, lst: list, results: list, idx: int):
         # data = [item.split('<')[0].replace('<', '').replace('>', '') for item in data]
-        results = [data]
-        for i in range(0, len(data)):
-            result_item = [item for item in data]
-            if data[i].lower() not in constant.JAVA_BASIC_TYPE:
-                result_item[i] = constant.PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
-            elif data[i][0].isupper():
-                result_item[i] = 'null'
-            results.append(result_item)
-        for i in range(0, len(data)):
-            if data[i].lower() in constant.JAVA_BASIC_TYPE:
-                continue
-            extends_package_class_list = self._get_extends_package_class(data[i])
-            for extends_package_class in extends_package_class_list:
-                result_item = [item for item in data]
-                result_item[i] = extends_package_class
-                results.append(result_item)
-        return results
+        for i in range(idx, len(lst)):
+            new_lst = lst[:]
+            if not self._is_duplicate_item(new_lst, results):
+                results.append(new_lst)
+            if new_lst[i].lower() not in constant.JAVA_BASIC_TYPE:
+                new_lst2 = new_lst[:]
+                if new_lst[i].startswith('List'):
+                    new_lst2[i] = 'ArrayList'
+                elif new_lst[i].startswith('Map'):
+                    new_lst2[i] = 'HashMap'
+                elif new_lst[i].startswith('Set'):
+                    new_lst2[i] = 'HashSet'
+                if not self._is_duplicate_item(new_lst2, results):
+                    results.append(new_lst2)
+                    self._replace_with_unknown(new_lst2, results, idx)
+            else:
+                if new_lst[i][0].isupper() and new_lst[i] != 'String':
+                    new_lst2 = new_lst[:]
+                    new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
+                    if not self._is_duplicate_item(new_lst2, results):
+                        results.append(new_lst2)
+                        self._replace_with_unknown(new_lst2, results, idx)
+            for el in ['null', 'unknown']:
+                new_lst_tmp = new_lst[:]
+                new_lst_tmp[i] = el
+                if not self._is_duplicate_item(new_lst_tmp, results):
+                    results.append(new_lst_tmp)
+                    self._replace_with_unknown(new_lst_tmp, results, min(idx, len(new_lst) - 1))
 
     # Step 5.5
     def _get_method_param_string(self, method_db: dict):

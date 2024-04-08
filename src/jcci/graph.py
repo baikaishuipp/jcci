@@ -2,6 +2,8 @@ import src.jcci.constant as constant
 from collections import deque
 
 def max_relationship_length(relationships):
+    if not relationships:
+        return {}
     # 构建邻接列表
     graph = {}
     for relationship in relationships:
