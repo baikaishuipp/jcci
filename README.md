@@ -83,9 +83,9 @@ branch_analyze.analyze_two_branch('branch_new','branch_old')
 ![请作者喝咖啡](./images/donation.png)
 
 #### 沟通交流
-扫码加微信，备注：JCCI微信群交流
+扫码加微信，备注：JCCI微信群交流，或者扫码加入钉钉交流群
 
-![微信交流群](./images/wechat.jpg) 
+![微信交流群](./images/wechat.jpg) ![钉钉交流群](./images/jcci_dingding.jpg) 
 
 #### Star History
 
