@@ -104,9 +104,9 @@ class Graph(object):
                 'show': True,
                 'formatter': changed_node["name"].split("(")[0]
             }
-            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node["diff_content"]}'
+            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node.get("diff_content", "")}'
             if changed_node.get('is_api'):
-                tooltip = tooltip + f'<br>[API]{changed_node["api_path"]}'
+                tooltip = tooltip + f'<br>[API]{changed_node.get("api_path")}'
             changed_node['tooltip'] = {
                 'show': True,
                 'position': 'right',
