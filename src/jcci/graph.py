@@ -113,7 +113,7 @@ class Graph(object):
                 'formatter': tooltip
             }
             all_node.append(changed_node)
-        max_link_count = max([value for key, value in result.items()])
+        max_link_count = max([value for key, value in result.items()]) if result else 1
         count_node_result = {}
         for key, value in result.items():
             value = str(value)
@@ -125,13 +125,13 @@ class Graph(object):
             level_node_list = count_node_result.get(str(path_level), [impacted_node['id']])
             level_node_index = level_node_list.index(impacted_node['id']) if impacted_node['id'] in level_node_list else 1
             impacted_node['x'] = 100 + ((canvas_width - 100) / max_link_count) * (path_level + 1)
-            impacted_node['y'] = (canvas_height / len(count_node_result[str(path_level)])) * level_node_index
+            impacted_node['y'] = (canvas_height / len(count_node_result.get(str(path_level), [1]))) * level_node_index
             impacted_node['label'] = {
                 'show': True,
                 'formatter': impacted_node["name"].split("(")[0]
             }
             if impacted_node.get('is_api'):
-                tooltip = f'{impacted_node["name"].split("(")[0]}<br>[API]{impacted_node["api_path"]}'
+                tooltip = f'{impacted_node["name"].split("(")[0]}<br>[API]{impacted_node.get("api_path")}'
                 impacted_node['tooltip'] = {
                     'show': True,
                     'position': 'right',

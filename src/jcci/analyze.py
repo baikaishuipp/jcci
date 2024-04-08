@@ -88,6 +88,20 @@ class JCCI(object):
         logging.info(f'Analyzing diff file, location: {diff_txt}')
         return diff_parse.get_diff_info(diff_txt)
 
+    # Step 2
+    def _get_branch_diff_parse_map(self, filepath, branch_first, branch_second):
+        logging.info('Git pull project to HEAD')
+        os.system(f'cd {filepath} && git fetch --all && git checkout -b {branch_second} origin/{branch_second} && git checkout {branch_second} && git pull')
+        time.sleep(1)
+        os.system(f'cd {filepath} && git fetch --all && git checkout -b {branch_first} origin/{branch_first} && git checkout {branch_first} && git pull')
+        time.sleep(1)
+        logging.info(f'Git diff between {branch_first} and {branch_second}')
+        diff_base = f'cd {self.file_path} && git diff {branch_second}..{branch_first} > diff_{branch_second.replace("/", "#")}..{branch_first.replace("/", "#")}.txt'
+        os.system(diff_base)
+        diff_txt = os.path.join(self.file_path, f'diff_{branch_second.replace("/", "#")}..{branch_first.replace("/", "#")}.txt')
+        logging.info(f'Analyzing diff file, location: {diff_txt}')
+        return diff_parse.get_diff_info(diff_txt)
+
     # Step 3
     def _parse_project(self, project_dir, new_commit_or_branch, old_commit_or_branch):
         # 解析最新的项目文件
@@ -111,6 +125,28 @@ class JCCI(object):
                 continue
             matched_file_path = matched_file_path_list[0]
             java_parse.parse_java_file(matched_file_path, old_commit_or_branch)
+        return xml_parse_result_new, xml_parse_result_old
+
+    # Step 3
+    def _parse_branch_project(self, project_dir, new_branch, old_branch):
+        # 解析最新的项目文件
+        os.system(f'cd {project_dir} && git checkout {new_branch}')
+        time.sleep(2)
+        file_path_list = self._get_project_files(project_dir)
+        diff_xml_file_path = [key for key in file_path_list if key.endswith('.xml') and any(key.endswith(diff_path) for diff_path in self.diff_parse_map.keys())]
+        java_parse = JavaParse(self.sqlite.db_path, self.project_id)
+        java_parse.parse_java_file_list(file_path_list, new_branch)
+        xml_parse_result_new = self._parse_xml_file(diff_xml_file_path)
+        # 解析旧版本有差异的文件
+        os.system(f'cd {project_dir} && git checkout {old_branch}')
+        time.sleep(2)
+        xml_parse_result_old = self._parse_xml_file(diff_xml_file_path)
+        for key in self.diff_parse_map.keys():
+            matched_file_path_list = [filepath for filepath in file_path_list if filepath.endswith(key)]
+            if not matched_file_path_list:
+                continue
+            matched_file_path = matched_file_path_list[0]
+            java_parse.parse_java_file(matched_file_path, old_branch)
         return xml_parse_result_new, xml_parse_result_old
 
     # Step 3.1 get all java files
@@ -260,6 +296,8 @@ class JCCI(object):
         class_name = package_class.split('.')[-1]
         class_db_list = self.sqlite.select_data(f'SELECT * FROM class WHERE project_id = {self.project_id} and class_name="{class_name}" and package_name="{package_name}"')
         class_entity = self._get_right_class_entity(class_db_list, commit_or_branch)
+        if not class_entity:
+            return
         class_filepath = class_entity['filepath']
         class_id = class_entity["class_id"]
         # gengxin
@@ -614,6 +652,26 @@ class JCCI(object):
         finally:
             pass
         logging.info(f'Analyze done, spend: {t2 - self.t1}')
+
+    def analyze_two_branch(self, branch_first, branch_second):
+        logging.info('*' * 10 + 'Analyze start' + '*' * 10)
+        self.commit_or_branch_new = branch_first
+        self.commit_or_branch_old = branch_second
+        self.branch_name = branch_first
+        self.project_name = self.git_url.split('/')[-1].split('.git')[0]
+        self.file_path = os.path.join(project_path, self.project_name)
+        self.project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, branch_first, branch_second)
+        # 已有分析结果
+        self.cci_filepath = os.path.join(self.file_path, f'{branch_second.replace("/", "#")}..{branch_first.replace("/", "#")}.cci')
+        self._can_analyze(self.file_path, self.cci_filepath)
+        # 无此项目, 先clone项目
+        if not os.path.exists(self.file_path):
+            logging.info(f'Cloning project: {self.git_url}')
+            os.system(f'git clone -b {branch_first} {self.git_url} {self.file_path}')
+        self._occupy_project()
+        self.diff_parse_map = self._get_branch_diff_parse_map(self.file_path, branch_first, branch_second)
+        self.xml_parse_results_new, self.xml_parse_results_old = self._parse_branch_project(self.file_path, branch_first, branch_second)
+        self._start_analysis_diff_and_impact()
 
     def analyze_two_commit(self, branch, commit_first, commit_second):
         logging.info('*' * 10 + 'Analyze start' + '*' * 10)
