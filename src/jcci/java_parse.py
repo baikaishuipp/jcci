@@ -222,7 +222,7 @@ class JavaParse(object):
                 'is_static': is_static,
                 'is_abstract': is_abstract,
                 'is_api': is_api,
-                'api_path': json.dumps(api_path),
+                'api_path': json.dumps(api_path) if is_api else None,
                 'start_line': method_start_line,
                 'end_line': method_end_line,
                 'documentation': documentation
@@ -429,6 +429,8 @@ class JavaParse(object):
             if method_api_path_obj.startswith('/'):
                 method_api_path_obj = method_api_path_obj[1:]
             api_path = base_request + method_api_path_obj
+            if not api_path:
+                continue
             if api_path.endswith('/'):
                 api_path = api_path[0:-1]
             if len(req_method_list) > 0:
