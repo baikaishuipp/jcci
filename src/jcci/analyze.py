@@ -137,7 +137,8 @@ class JCCI(object):
         for filepath in file_path_list:
             if filepath.endswith('.xml'):
                 xml_parse_result = mapper_parse.parse(filepath)
-                xml_parse_results[filepath] = xml_parse_result
+                if xml_parse_result:
+                    xml_parse_results[filepath] = xml_parse_result
         return xml_parse_results
 
     # Step 4

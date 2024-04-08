@@ -31,8 +31,11 @@ class MapperStatement(MapperElement):
 
 def parse(filepath):
     # 读取XML文件内容
-    with open(filepath, "r", encoding="utf-8") as file:
-        xml_content = file.read()
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            xml_content = file.read()
+    except:
+        return None
 
     # 解析XML文件
     tree = ET.ElementTree(ET.fromstring(xml_content))
