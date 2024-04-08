@@ -388,6 +388,8 @@ class JavaParse(object):
             if method_annotation.name != 'RequestMapping':
                 req_method_list.append(method_annotation.name.replace('Mapping', ''))
             else:
+                if not method_annotation.element:
+                    continue
                 for method_annotation_element in method_annotation.element:
                     if type(method_annotation_element) == tuple:
                         req_method_list = ['ALL']
@@ -618,9 +620,9 @@ class JavaParse(object):
             logging.error(f"Error parsing {filepath}: {e}")
             return
         # 处理包信息
-        package_name = tree.package.name if tree.package else None
+        package_name = tree.package.name if tree.package else 'unknown'
         class_name = tree.types[0].name
-        package_class = package_name + '.' + tree.types[0].name
+        package_class = package_name + '.' + class_name
         # 处理 import 信息
         import_list = self._parse_imports(tree.imports)
         import_map = {import_obj['import_path'].split('.')[-1]: import_obj['import_path'] for import_obj in import_list}
