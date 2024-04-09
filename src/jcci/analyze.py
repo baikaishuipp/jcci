@@ -681,7 +681,7 @@ class JCCI(object):
         self.project_name = self.git_url.split('/')[-1].split('.git')[0]
         self.file_path = os.path.join(config.project_path, self.project_name)
 
-        project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, self.commit_or_branch_new, f'{package_class}.{method_nums}')
+        self.project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, self.commit_or_branch_new, f'{package_class}.{method_nums}')
         class_name = package_class.split("/")[-1].replace('.java', '')
         cci_path = f'{branch}_{commit_id}_{class_name}_{method_nums}.cci'
         self.cci_filepath = os.path.join(self.file_path, cci_path)
@@ -702,7 +702,7 @@ class JCCI(object):
         if not method_nums:
             method_nums_all = []
             # todo
-            class_db = self.sqlite.select_data('SELECT * FROM class WHERE project_id = ' + str(project_id) + ' and filepath LIKE "%' + package_class + '"')
+            class_db = self.sqlite.select_data('SELECT * FROM class WHERE project_id = ' + str(self.project_id) + ' and filepath LIKE "%' + package_class + '"')
             if not class_db:
                 logging.error(f'Can not find {package_class} in db')
             class_id = class_db[0]['class_id']
