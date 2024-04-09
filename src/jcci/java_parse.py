@@ -530,7 +530,7 @@ class JavaParse(object):
         # todo
         elif argument_type == javalang.tree.SuperMemberReference:
             var_declarator_type_argument = 'String'
-        elif argument.type is not None:
+        elif 'type' in argument.attrs and argument.type is not None:
             var_declarator_type_argument = argument.type.name
         else:
             logging.info(f'argument type is None：{argument}')
