@@ -1,3 +1,4 @@
+import os
 import logging
 import json
 import javalang
@@ -111,7 +112,7 @@ class JavaParse(object):
         self.sqlite.insert_data('field', field_list)
         return field_list
 
-    def _parse_method(self, methods, lines, class_id, import_map, field_map):
+    def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
         # 处理 methods
         all_method = []
         class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE class_id = {class_id}')[0]
@@ -128,7 +129,7 @@ class JavaParse(object):
             is_static = 'static' in list(method_obj.modifiers)
             is_abstract = 'abstract' in list(method_obj.modifiers)
             # 处理返回对象
-            return_type = self._deal_declarator_type(method_obj.return_type, import_map, method_invocation, RETURN_TYPE)
+            return_type = self._deal_declarator_type(method_obj.return_type, import_map, method_invocation, RETURN_TYPE, package_name, filepath)
             method_start_line = method_obj.position.line
             if method_obj.annotations:
                 method_start_line = method_obj.annotations[0].position.line
@@ -138,7 +139,7 @@ class JavaParse(object):
             parameters = []
             for parameter in method_obj.parameters:
                 parameter_obj = {
-                    'parameter_type': self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS),
+                    'parameter_type': self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS, package_name, filepath),
                     'parameter_name': parameter.name,
                     'parameter_varargs': parameter.varargs
                 }
@@ -150,7 +151,7 @@ class JavaParse(object):
                 for body in method_obj.body:
                     for path, node in body.filter(javalang.tree.VariableDeclaration):
                         var_declarator = node.declarators[0].name
-                        var_declarator_type = self._deal_declarator_type(node.type, import_map, method_invocation, BODY)
+                        var_declarator_type = self._deal_declarator_type(node.type, import_map, method_invocation, BODY, package_name, filepath)
                         variable_map[var_declarator] = var_declarator_type
                     for path, node in body.filter(javalang.tree.MethodInvocation):
                         qualifier = node.qualifier
@@ -186,7 +187,7 @@ class JavaParse(object):
                                 for method_item in methods:
                                     if method_item.name != member or len(node.arguments) != len(method_item.parameters):
                                         continue
-                                    method_item_param_types = [self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS) for parameter in method_item.parameters]
+                                    method_item_param_types = [self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS, package_name, filepath) for parameter in method_item.parameters]
                                     score = self._calculate_similar_score_method_params(node_arguments, method_item_param_types)
                                     if score > max_score:
                                         max_score = score
@@ -467,7 +468,7 @@ class JavaParse(object):
         else:
             method_invocation[package_class][FIELDS][field] += lines
 
-    def _deal_declarator_type(self, node_type, import_map, method_invocation, section):
+    def _deal_declarator_type(self, node_type, import_map, method_invocation, section, package_name, filepath):
         if node_type is None:
             return node_type
         if type(node_type) == javalang.tree.BasicType:
@@ -476,6 +477,10 @@ class JavaParse(object):
         if var_declarator_type in import_map.keys():
             var_declarator_type = import_map.get(var_declarator_type)
             self._add_entity_used_to_method_invocation(method_invocation, var_declarator_type, section)
+        else:
+            node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type + ".java"
+            if os.path.exists(node_path):
+                var_declarator_type = f'{package_name}.{var_declarator_type}'
         var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, import_map, method_invocation, section)
         if var_declarator_type_arguments:
             var_declarator_type = var_declarator_type + '<' + '#'.join(var_declarator_type_arguments) + '>'
@@ -604,7 +609,7 @@ class JavaParse(object):
             extend_new_map.update(extend_class_fields_map)
             return extend_new_map
 
-    def parse_java_file(self, filepath, commit_or_branch):
+    def parse_java_file(self, filepath: str, commit_or_branch: str):
         if not filepath.endswith('.java'):
             return
         try:
@@ -648,7 +653,7 @@ class JavaParse(object):
         extends_class_fields_map = self._get_extends_class_fields_map(class_id)
         extends_class_fields_map.update(field_map)
         # 处理 methods 信息
-        self._parse_method(tree.types[0].methods, lines, class_id, import_map, extends_class_fields_map)
+        self._parse_method(tree.types[0].methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
 
     def parse_java_file_list(self, filepath_list: list, commit_or_branch: str):
         for file_path in filepath_list:
