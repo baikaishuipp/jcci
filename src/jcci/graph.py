@@ -104,7 +104,7 @@ class Graph(object):
                 'show': True,
                 'formatter': changed_node["name"].split("(")[0]
             }
-            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node.get("diff_content", "")}'
+            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node.get("diff_content", "")}<br>[annotations]{changed_node.get("annotations", "")}'
             if changed_node.get('is_api'):
                 tooltip = tooltip + f'<br>[API]{changed_node.get("api_path")}'
             changed_node['tooltip'] = {
@@ -132,11 +132,13 @@ class Graph(object):
             }
             if impacted_node.get('is_api'):
                 tooltip = f'{impacted_node["name"].split("(")[0]}<br>[API]{impacted_node.get("api_path")}'
-                impacted_node['tooltip'] = {
-                    'show': True,
-                    'position': 'right',
-                    'formatter': tooltip
-                }
+            else:
+                tooltip = f'{impacted_node["name"].split("(")[0]}<br>[annotations]{impacted_node.get("annotations", "")}'
+            impacted_node['tooltip'] = {
+                'show': True,
+                'position': 'right',
+                'formatter': tooltip
+            }
             all_node.append(impacted_node)
         self.nodes = all_node
 

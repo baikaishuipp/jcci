@@ -21,6 +21,7 @@ class JCCI(object):
     def __init__(self, git_url, username):
         self.git_url = git_url
         self.username: str = username
+        # self.git_token = git_token
         self.branch_name: str = ''
         self.commit_or_branch_new: str = ''
         self.commit_or_branch_old: str = ''
@@ -552,12 +553,9 @@ class JCCI(object):
     # Step 5.9
     def _handle_impacted_methods(self, impacted_methods: list, source_node_id):
         for impacted_method in impacted_methods:
-            node_extend_dict = {'is_api': False}
-            if impacted_method.get('is_api') == 'True':
-                node_extend_dict = {
-                    'is_api': True,
-                    'api_path': impacted_method['api_path']
-                }
+            is_api = impacted_method.get('is_api') == 'True'
+            node_extend_dict = impacted_method
+            node_extend_dict['is_api'] = is_api
             class_id = impacted_method['class_id']
             class_entity = self.sqlite.select_data(f'SELECT * FROM class WHERE class_id={class_id}')[0]
             class_name = class_entity['class_name']
