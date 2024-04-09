@@ -104,9 +104,13 @@ class Graph(object):
                 'show': True,
                 'formatter': changed_node["name"].split("(")[0]
             }
-            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node.get("diff_content", "")}<br>[annotations]{changed_node.get("annotations", "")}'
+            tooltip = f'{changed_node["name"].split("(")[0]}<br>[Changed]{changed_node.get("diff_content", "")}'
             if changed_node.get('is_api'):
                 tooltip = tooltip + f'<br>[API]{changed_node.get("api_path")}'
+            if changed_node.get("annotations"):
+                tooltip += f'<br>[annotations]{changed_node.get("annotations", "")}'
+            if changed_node.get("class_annotations"):
+                tooltip += f'<br>[class_annotations]{changed_node.get("class_annotations", "")}'
             changed_node['tooltip'] = {
                 'show': True,
                 'position': 'right',
@@ -130,10 +134,13 @@ class Graph(object):
                 'show': True,
                 'formatter': impacted_node["name"].split("(")[0]
             }
+            tooltip = f'{impacted_node["name"].split("(")[0]}'
             if impacted_node.get('is_api'):
-                tooltip = f'{impacted_node["name"].split("(")[0]}<br>[API]{impacted_node.get("api_path")}'
-            else:
-                tooltip = f'{impacted_node["name"].split("(")[0]}<br>[annotations]{impacted_node.get("annotations", "")}'
+                tooltip += f'<br>[API]{impacted_node.get("api_path")}'
+            if impacted_node.get("annotations"):
+                tooltip += f'<br>[annotations]{impacted_node.get("annotations", "")}'
+            if impacted_node.get("class_annotations"):
+                tooltip += f'<br>[class_annotations]{impacted_node.get("class_annotations", "")}'
             impacted_node['tooltip'] = {
                 'show': True,
                 'position': 'right',

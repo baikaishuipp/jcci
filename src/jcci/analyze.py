@@ -563,6 +563,7 @@ class JCCI(object):
             package_class = f'{package_name}.{class_name}'
             commit_or_branch = class_entity['commit_or_branch']
             class_filepath = class_entity['filepath']
+            node_extend_dict['class_annotations'] = class_entity['annotations']
             method_name_param = f'{impacted_method["method_name"]}({",".join([param["parameter_type"] for param in json.loads(impacted_method["parameters"])])})'
             impacted_method_node_id = self.view.create_node_category(class_name, method_name_param, constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_IMPACTED, impacted_method['body'], class_filepath, impacted_method['documentation'], impacted_method['body'], node_extend_dict)
             self.view.create_node_link(source_node_id, impacted_method_node_id)
