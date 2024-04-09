@@ -158,19 +158,19 @@ class JavaParse(object):
                         member = node.member
                         # 类静态方法调用
                         if not qualifier and not member[0].islower():
-                            qualifier_type = self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
+                            qualifier_type = self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                             # todo a.b.c
                             if node.selectors is None:
                                 continue
                             for selector in node.selectors:
                                 selector_member = selector.member
-                                selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
+                                selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                                 selector_line = selector.position.line
                                 selector_method = f'{selector_member}({",".join(selector_arguments)})'
                                 self._add_method_used_to_method_invocation(method_invocation, qualifier_type, selector_method, [selector_line])
                         elif qualifier:
-                            qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
-                            node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
+                            qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                            node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                             node_line = node.position.line
                             node_method = f'{member}({",".join(node_arguments)})'
                             self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
@@ -179,7 +179,7 @@ class JavaParse(object):
                             class_db = self.sqlite.select_data(f'SELECT * FROM class where class_id={class_id} limit 1')[0]
                             package_class = class_db['package_name'] + '.' + class_db['class_name']
                             node_line = node.position.line
-                            node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
+                            node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                             # todo 同级方法, 判断参数长度，不精确
                             if method_name_entity_map.get(member):
                                 same_class_method = None
@@ -193,7 +193,7 @@ class JavaParse(object):
                                         max_score = score
                                         same_class_method = method_item
                                 if same_class_method:
-                                    node_arguments = self._deal_var_type(same_class_method.parameters, parameters_map, variable_map, field_map, import_map, method_invocation, BODY)
+                                    node_arguments = self._deal_var_type(same_class_method.parameters, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                                     node_method = f'{member}({",".join(node_arguments)})'
                                     self._add_method_used_to_method_invocation(method_invocation, package_class, node_method, [node_line])
                             # todo 继承方法
@@ -508,6 +508,8 @@ class JavaParse(object):
         argument_type = type(argument)
         if argument_type == javalang.tree.MemberReference:
             var_declarator_type_argument = argument.member
+        elif argument_type == javalang.tree.ClassCreator:
+            var_declarator_type_argument = argument.type.name
         elif argument_type == javalang.tree.Literal:
             var_declarator_type_argument = self._deal_literal_type(argument.value)
         elif argument_type == javalang.tree.This:
@@ -544,7 +546,7 @@ class JavaParse(object):
             return 'int'
         return 'String'
 
-    def _deal_var_type(self, arguments, parameters_map, variable_map, field_map, import_map, method_invocation, section):
+    def _deal_var_type(self, arguments, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
         var_declarator_type_arguments_new = []
         if not arguments:
             return var_declarator_type_arguments_new
@@ -555,7 +557,7 @@ class JavaParse(object):
                 var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
                 continue
             var_declarator_type_argument = self._deal_type(argument)
-            var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section)
+            var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
             type_arguments = self._deal_arguments_type(argument.type.arguments, import_map, method_invocation, section) \
                 if 'type' in argument.attrs \
                    and not isinstance(argument.type, str) \
@@ -567,7 +569,7 @@ class JavaParse(object):
             var_declarator_type_arguments.append(var_declarator_type_argument)
         return var_declarator_type_arguments
 
-    def _get_var_type(self, var, parameters_map, variable_map, field_map, import_map, method_invocation, section):
+    def _get_var_type(self, var, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
         if not var:
             return var
         if var in parameters_map.keys():
@@ -584,6 +586,11 @@ class JavaParse(object):
             var_type = import_map.get(var)
             self._add_entity_used_to_method_invocation(method_invocation, var_type, section)
             return var_type
+        else:
+            var_path = "/".join(filepath.split("/")[0: -1]) + "/" + var + ".java"
+            if os.path.exists(var_path):
+                var_type = f'{package_name}.{var}'
+                return var_type
         return PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
 
     def _get_extends_class_fields_map(self, class_id: int):
