@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jcci"
-version = "0.1.2"
+version = "0.1.4"
 authors = [
   { name="Oliver Li", email="441640312@qq.com" },
 ]

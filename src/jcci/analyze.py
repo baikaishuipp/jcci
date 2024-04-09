@@ -6,14 +6,13 @@ import atexit
 import logging
 import datetime
 import fnmatch
-from src.jcci.config import project_path, db_path, ignore_file
-from src.jcci.database import SqliteHelper
-from src.jcci.java_parse import JavaParse
-import src.jcci.mapper_parse as mapper_parse
-import src.jcci.diff_parse as diff_parse
-import src.jcci.graph as graph
-import src.jcci.constant as constant
-from itertools import combinations
+from . import config as config
+from .database import SqliteHelper
+from .java_parse import JavaParse
+from . import mapper_parse as mapper_parse
+from . import diff_parse as diff_parse
+from . import graph as graph
+from . import constant as constant
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -29,7 +28,7 @@ class JCCI(object):
         self.cci_filepath: str = ''
         self.project_name: str = ''
         self.file_path: str = ''
-        self.sqlite = SqliteHelper(db_path + '/' + username + '_jcci.db')
+        self.sqlite = SqliteHelper(config.db_path + '/' + username + '_jcci.db')
         self.view = graph.Graph()
         self.t1 = datetime.datetime.now()
         self.need_analyze_obj_list = []
@@ -158,7 +157,7 @@ class JCCI(object):
             for file in files:
                 ignore = False
                 filepath = os.path.join(root, file)
-                for pattern in ignore_file:
+                for pattern in config.ignore_file:
                     if fnmatch.fnmatch(filepath, pattern):
                         ignore = True
                         break
@@ -633,7 +632,7 @@ class JCCI(object):
         self.commit_or_branch_old = branch_second
         self.branch_name = branch_first
         self.project_name = self.git_url.split('/')[-1].split('.git')[0]
-        self.file_path = os.path.join(project_path, self.project_name)
+        self.file_path = os.path.join(config.project_path, self.project_name)
         self.project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, branch_first, branch_second)
         # 已有分析结果
         self.cci_filepath = os.path.join(self.file_path, f'{branch_second.replace("/", "#")}..{branch_first.replace("/", "#")}.cci')
@@ -654,7 +653,7 @@ class JCCI(object):
         self.commit_or_branch_old = commit_second[0: 7] if len(commit_second) > 7 else commit_second
 
         self.project_name = self.git_url.split('/')[-1].split('.git')[0]
-        self.file_path = os.path.join(project_path, self.project_name)
+        self.file_path = os.path.join(config.project_path, self.project_name)
 
         self.project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, self.commit_or_branch_new, self.commit_or_branch_old)
         # 已有分析结果
@@ -680,7 +679,7 @@ class JCCI(object):
         self.commit_or_branch_new = commit_id
         self.commit_or_branch_new = self.commit_or_branch_new[0: 7] if len(self.commit_or_branch_new) > 7 else self.commit_or_branch_new
         self.project_name = self.git_url.split('/')[-1].split('.git')[0]
-        self.file_path = os.path.join(project_path, self.project_name)
+        self.file_path = os.path.join(config.project_path, self.project_name)
 
         project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, self.commit_or_branch_new, f'{package_class}.{method_nums}')
         class_name = package_class.split("/")[-1].replace('.java', '')

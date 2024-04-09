@@ -1,4 +1,4 @@
-import src.jcci.constant as constant
+from . import constant as constant
 from collections import deque
 
 def max_relationship_length(relationships):

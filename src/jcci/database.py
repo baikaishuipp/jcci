@@ -3,7 +3,7 @@ import sqlite3
 import time
 import logging
 import os
-from src.jcci.sql import create_tables
+from .sql import create_tables
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
