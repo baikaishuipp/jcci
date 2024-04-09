@@ -481,12 +481,12 @@ class JavaParse(object):
             node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type + ".java"
             if os.path.exists(node_path):
                 var_declarator_type = f'{package_name}.{var_declarator_type}'
-        var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, import_map, method_invocation, section)
+        var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, import_map, method_invocation, section, package_name, filepath)
         if var_declarator_type_arguments:
             var_declarator_type = var_declarator_type + '<' + '#'.join(var_declarator_type_arguments) + '>'
         return var_declarator_type
 
-    def _deal_arguments_type(self, arguments, import_map, method_invocation, section):
+    def _deal_arguments_type(self, arguments, import_map, method_invocation, section, package_name, filepath):
         var_declarator_type_arguments_new = []
         if not arguments:
             return var_declarator_type_arguments_new
@@ -499,6 +499,10 @@ class JavaParse(object):
             if var_declarator_type_argument in import_map.keys():
                 var_declarator_type_argument = import_map.get(var_declarator_type_argument)
                 self._add_entity_used_to_method_invocation(method_invocation, var_declarator_type_argument, section)
+            else:
+                node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type_argument + ".java"
+                if os.path.exists(node_path):
+                    var_declarator_type_argument = f'{package_name}.{var_declarator_type_argument}'
             var_declarator_type_arguments.append(var_declarator_type_argument)
         return var_declarator_type_arguments
 
@@ -558,7 +562,7 @@ class JavaParse(object):
                 continue
             var_declarator_type_argument = self._deal_type(argument)
             var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
-            type_arguments = self._deal_arguments_type(argument.type.arguments, import_map, method_invocation, section) \
+            type_arguments = self._deal_arguments_type(argument.type.arguments, import_map, method_invocation, section, package_name, filepath) \
                 if 'type' in argument.attrs \
                    and not isinstance(argument.type, str) \
                    and 'arguments' in argument.type.attrs \
@@ -591,7 +595,7 @@ class JavaParse(object):
             if os.path.exists(var_path):
                 var_type = f'{package_name}.{var}'
                 return var_type
-        return PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
+        return var
 
     def _get_extends_class_fields_map(self, class_id: int):
         class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE class_id = {class_id}')[0]
