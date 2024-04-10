@@ -491,32 +491,23 @@ class JCCI(object):
                 result_item[i] = extends_package_class
                 results.append(result_item)
 
-    def _is_duplicate_item(self, new_lst, lst):
-        is_duplicate = False
-        for item in lst:
-            if item == new_lst:
-                is_duplicate = True
-                break
-        return is_duplicate
-
     # Step 5.4.1.1
     def _replace_with_null_unknown(self, lst: list):
         need_replace_list = []
         replaced_list = []
-        results = []
+        results = set()
         self._replace_params_with_unknown(lst, results, 0, need_replace_list)
         for item in need_replace_list:
             if item not in replaced_list:
                 replaced_list.append(item)
                 self._replace_params_with_unknown(item['list'], results, item['index'], need_replace_list)
-        return list(set(tuple(sub_list) for sub_list in results))
+        return list(results)
 
-    def _replace_params_with_unknown(self, lst: list, results: list, idx: int, need_replace_list: list):
+    def _replace_params_with_unknown(self, lst: list, results: set, idx: int, need_replace_list: list):
         # data = [item.split('<')[0].replace('<', '').replace('>', '') for item in data]
         for i in range(idx, len(lst)):
             new_lst = lst[:]
-            if not self._is_duplicate_item(new_lst, results):
-                results.append(new_lst)
+            results.add(tuple(new_lst))
             if new_lst[i].lower() not in constant.JAVA_BASIC_TYPE:
                 new_lst2 = new_lst[:]
                 if new_lst[i].startswith('List'):
@@ -525,21 +516,21 @@ class JCCI(object):
                     new_lst2[i] = 'HashMap'
                 elif new_lst[i].startswith('Set'):
                     new_lst2[i] = 'HashSet'
-                if not self._is_duplicate_item(new_lst2, results):
-                    results.append(new_lst2)
+                if tuple(new_lst2) not in results:
+                    results.add(tuple(new_lst2))
                     need_replace_list.append({'list': new_lst2, 'index': idx})
             else:
                 if new_lst[i][0].isupper() and new_lst[i] != 'String':
                     new_lst2 = new_lst[:]
                     new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
-                    if not self._is_duplicate_item(new_lst2, results):
-                        results.append(new_lst2)
+                    if tuple(new_lst2) not in results:
+                        results.add(tuple(new_lst2))
                         need_replace_list.append({'list': new_lst2, 'index': idx})
             for el in ['null', 'unknown']:
                 new_lst_tmp = new_lst[:]
                 new_lst_tmp[i] = el
-                if not self._is_duplicate_item(new_lst_tmp, results):
-                    results.append(new_lst_tmp)
+                if tuple(new_lst_tmp) not in results:
+                    results.add(tuple(new_lst_tmp))
                     need_replace_list.append({'list': new_lst_tmp, 'index': min(idx, len(new_lst) - 1)})
 
     # Step 5.5
