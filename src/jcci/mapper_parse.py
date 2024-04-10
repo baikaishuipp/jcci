@@ -104,7 +104,7 @@ def parse(filepath):
         result_map = None
         include_sql = None
         for i, line in enumerate(xml_content.splitlines(), start=1):
-            if check_string(statement_element.tag, statement_id, line.strip()):
+            if check_string('<' + statement_element.tag, statement_id, line.strip()):
                 start_line = i
             if f'resultMap="' in line and start_line != 0:
                 result_map = extract_value(line, 'resultMap')
