@@ -346,6 +346,8 @@ class JavaParse(object):
             return part.member.replace('"', '')
         elif part_class == 'Literal':
             return part.value.replace('"', '')
+        else:
+            return ''
 
     def _judge_is_controller(self, annotation_list):
         is_controller = any('Controller' in annotation.name for annotation in annotation_list)
