@@ -682,7 +682,7 @@ class JCCI(object):
 
         self.project_id = self.sqlite.add_project(self.project_name, self.git_url, self.branch_name, self.commit_or_branch_new, f'{package_class}.{method_nums}')
         class_name = package_class.split("/")[-1].replace('.java', '')
-        cci_path = f'{branch}_{commit_id}_{class_name}_{method_nums}.cci'
+        cci_path = f'{branch.replace("/", "#")}_{commit_id}_{class_name}_{method_nums}.cci'
         self.cci_filepath = os.path.join(self.file_path, cci_path)
         self._can_analyze(self.file_path, self.cci_filepath)
 
