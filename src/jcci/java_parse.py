@@ -563,9 +563,9 @@ class JavaParse(object):
 
     def _deal_literal_type(self, text):
         if 'true' == text or 'false' == text:
-            return 'boolean'
+            return 'Boolean'
         if text.isdigit():
-            return 'int'
+            return 'Int'
         return 'String'
 
     def _deal_var_type(self, arguments, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
