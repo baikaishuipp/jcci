@@ -153,6 +153,18 @@ class JavaParse(object):
                         var_declarator = node.declarators[0].name
                         var_declarator_type = self._deal_declarator_type(node.type, import_map, method_invocation, BODY, package_name, filepath)
                         variable_map[var_declarator] = var_declarator_type
+                    for path, node in body.filter(javalang.tree.ClassCreator):
+                        qualifier = node.type.name
+                        qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                        if node.selectors is None:
+                            self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
+                        else:
+                            for selector in node.selectors:
+                                selector_member = selector.member
+                                selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                                selector_line = selector.position.line
+                                selector_method = f'{selector_member}({",".join(selector_arguments)})'
+                                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, selector_method, [selector_line])
                     for path, node in body.filter(javalang.tree.MethodInvocation):
                         qualifier = node.qualifier
                         member = node.member
