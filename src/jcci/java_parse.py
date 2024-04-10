@@ -486,7 +486,9 @@ class JavaParse(object):
         if node_type is None:
             return node_type
         if type(node_type) == javalang.tree.BasicType:
-            return node_type.name
+            node_name = node_type.name
+            node_name = node_name[0].upper() + node_name[1:]
+            return node_name
         var_declarator_type = node_type.name
         if var_declarator_type in import_map.keys():
             var_declarator_type = import_map.get(var_declarator_type)
@@ -495,6 +497,8 @@ class JavaParse(object):
             node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type + ".java"
             if os.path.exists(node_path):
                 var_declarator_type = f'{package_name}.{var_declarator_type}'
+            else:
+                var_declarator_type = var_declarator_type[0].upper() + var_declarator_type[1:]
         var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, import_map, method_invocation, section, package_name, filepath)
         if var_declarator_type_arguments:
             var_declarator_type = var_declarator_type + '<' + '#'.join(var_declarator_type_arguments) + '>'
@@ -517,6 +521,8 @@ class JavaParse(object):
                 node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type_argument + ".java"
                 if os.path.exists(node_path):
                     var_declarator_type_argument = f'{package_name}.{var_declarator_type_argument}'
+                elif var_declarator_type_argument != PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN:
+                    var_declarator_type_argument = var_declarator_type_argument[0].upper() + var_declarator_type_argument[1:]
             var_declarator_type_arguments.append(var_declarator_type_argument)
         return var_declarator_type_arguments
 
@@ -559,9 +565,9 @@ class JavaParse(object):
 
     def _deal_literal_type(self, text):
         if 'true' == text or 'false' == text:
-            return 'boolean'
+            return 'Boolean'
         if text.isdigit():
-            return 'int'
+            return 'Int'
         return 'String'
 
     def _deal_var_type(self, arguments, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
@@ -609,6 +615,8 @@ class JavaParse(object):
             if os.path.exists(var_path):
                 var_type = f'{package_name}.{var}'
                 return var_type
+            else:
+                var = var[0].upper() + var[1:]
         return var
 
     def _get_extends_class_fields_map(self, class_id: int):

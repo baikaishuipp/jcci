@@ -521,14 +521,14 @@ class JCCI(object):
                     results.add(tuple(new_lst2))
                     if {'list': new_lst2, 'index': idx} not in need_replace_list:
                         need_replace_list.append({'list': new_lst2, 'index': idx})
-            else:
-                if new_lst[i][0].isupper() and new_lst[i] != 'String':
-                    new_lst2 = new_lst[:]
-                    new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
-                    if tuple(new_lst2) not in results:
-                        results.add(tuple(new_lst2))
-                        if {'list': new_lst2, 'index': idx} not in need_replace_list:
-                            need_replace_list.append({'list': new_lst2, 'index': idx})
+            # else:
+            #     if new_lst[i][0].isupper() and new_lst[i] != 'String':
+            #         new_lst2 = new_lst[:]
+            #         new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
+            #         if tuple(new_lst2) not in results:
+            #             results.add(tuple(new_lst2))
+            #             if {'list': new_lst2, 'index': idx} not in need_replace_list:
+            #                 need_replace_list.append({'list': new_lst2, 'index': idx})
             for el in ['null', 'unknown']:
                 new_lst_tmp = new_lst[:]
                 new_lst_tmp[i] = el
