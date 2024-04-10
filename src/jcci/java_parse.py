@@ -486,7 +486,9 @@ class JavaParse(object):
         if node_type is None:
             return node_type
         if type(node_type) == javalang.tree.BasicType:
-            return node_type.name
+            node_name = node_type.name
+            node_name = node_name[0].upper() + node_name[1:]
+            return node_name
         var_declarator_type = node_type.name
         if var_declarator_type in import_map.keys():
             var_declarator_type = import_map.get(var_declarator_type)
