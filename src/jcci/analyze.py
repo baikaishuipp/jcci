@@ -499,6 +499,8 @@ class JCCI(object):
         results = set()
         self._replace_params_with_unknown(lst, results, 0, need_replace_list)
         for item in need_replace_list:
+            if len(results) > 1000:
+                break
             if item not in replaced_list:
                 replaced_list.append(item)
                 self._replace_params_with_unknown(item['list'], results, item['index'], need_replace_list)
