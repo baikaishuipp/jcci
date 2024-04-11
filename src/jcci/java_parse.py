@@ -615,7 +615,7 @@ class JavaParse(object):
             if os.path.exists(var_path):
                 var_type = f'{package_name}.{var}'
                 return var_type
-            else:
+            elif var != PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN:
                 var = var[0].upper() + var[1:]
         return var
 
