@@ -537,9 +537,9 @@ class JavaParse(object):
         elif argument_type == javalang.tree.Literal:
             var_declarator_type_argument = self._deal_literal_type(argument.value)
         elif argument_type == javalang.tree.This:
-            var_declarator_type_argument = 'This'
+            var_declarator_type_argument = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
         elif argument_type == javalang.tree.LambdaExpression:
-            var_declarator_type_argument = 'LambdaExpression'
+            var_declarator_type_argument = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
         elif argument_type == javalang.tree.BinaryOperation:
             # todo BinaryOperation temp set string
             var_declarator_type_argument = 'String'
