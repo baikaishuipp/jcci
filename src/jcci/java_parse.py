@@ -3,7 +3,7 @@ import logging
 import json
 import javalang
 from .database import SqliteHelper
-from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE
+from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -397,7 +397,7 @@ class JavaParse(object):
         method_api_path = []
         is_api = False
         for method_annotation in method_annotations:
-            if 'Mapping' not in method_annotation.name:
+            if method_annotation.name not in MAPPING_LIST:
                 continue
             is_api = True
             if method_annotation.name != 'RequestMapping':
@@ -578,6 +578,9 @@ class JavaParse(object):
         for argument in arguments:
             argument_type = type(argument)
             if argument_type == javalang.tree.MethodInvocation:
+                var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
+                continue
+            elif argument_type == javalang.tree.MemberReference and argument.qualifier:
                 var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
                 continue
             var_declarator_type_argument = self._deal_type(argument)
