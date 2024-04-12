@@ -213,7 +213,7 @@ class JavaParse(object):
                             # todo 继承方法
                             elif class_db['extends_class']:
                                 extends_package_class, method_params = self._find_method_in_extends(class_db['extends_class'], member, node_arguments)
-                                if not extends_package_class:
+                                if extends_package_class:
                                     self._add_method_used_to_method_invocation(method_invocation, extends_package_class, method_params, [node_line])
 
                     # for path, node in body.filter(javalang.tree.SuperMethodInvocation):
