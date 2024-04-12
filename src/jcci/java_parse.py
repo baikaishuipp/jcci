@@ -160,6 +160,8 @@ class JavaParse(object):
                             self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
                         else:
                             for selector in node.selectors:
+                                if type(selector) != javalang.tree.MethodInvocation:
+                                    continue
                                 selector_member = selector.member
                                 selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                                 selector_line = selector.position.line
