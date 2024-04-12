@@ -22,3 +22,4 @@ DIFF_TYPE_CHANGED = 'changed'
 DIFF_TYPE_IMPACTED = 'impacted'
 
 JAVA_BASIC_TYPE = ['string', 'int', 'boolean', 'long', 'byte', 'short', 'float', 'double', 'char']
+MAPPING_LIST = ['PostMapping', 'GetMapping', 'DeleteMapping', 'PutMapping', 'PatchMapping', 'RequestMapping']
