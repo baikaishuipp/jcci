@@ -59,8 +59,8 @@ class JavaParse(object):
                 extends_class_name = extends_package_class_item.split('.')[-1]
                 extends_class_filepath = base_filepath + extends_package_class_item.replace('.', '/') + '.java'
                 extends_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE project_id={self.project_id} and package_name = "{extends_package}" and class_name = "{extends_class_name}" and filepath= "{extends_class_filepath}"')
-                # if not extends_class_db:
-                # self.parse_java_file(extends_class_filepath, commit_or_branch)
+                if not extends_class_db:
+                    self.parse_java_file(extends_class_filepath, commit_or_branch)
         implements = ','.join([implement.name for implement in node.implements]) if 'implements' in node.attrs and node.implements else None
         class_id, new_add = self.sqlite.add_class(filepath.replace('\\', '/'), access_modifier, class_type, class_name, package_name, extends_package_class, self.project_id, implements, annotations_json, documentation, is_controller, controller_base_url, commit_or_branch)
         return class_id, new_add
