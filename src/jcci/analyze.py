@@ -382,7 +382,9 @@ class JCCI(object):
         extends_class_name = extends_package_class.split('.')[-1]
         extends_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id} and commit_or_branch = "{commit_or_branch}"')
         if not extends_class_db:
-            return None
+            extends_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id}')
+            if not extends_class_db:
+                return None
         extends_class_id = extends_class_db[0]['class_id']
         methods_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
         if methods_db:
@@ -465,6 +467,9 @@ class JCCI(object):
         class_ids = [str(method['class_id']) for method in methods]
         class_sql = f'SELECT * FROM class WHERE class_id in ({", ".join(class_ids)}) and commit_or_branch ="{commit_or_branch}"'
         class_db = self.sqlite.select_data(class_sql)
+        if not class_db:
+            class_sql = f'SELECT * FROM class WHERE class_id in ({", ".join(class_ids)})'
+            class_db = self.sqlite.select_data(class_sql)
         class_db_id = [class_item['class_id'] for class_item in class_db]
         return [method for method in methods if method['class_id'] in class_db_id]
 
