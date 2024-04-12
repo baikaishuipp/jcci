@@ -192,10 +192,10 @@ class JCCI(object):
         xml_file_path = xml_file_path_list[0]
         xml_name = xml_file_path.split('/')[-1]
         xml_parse_result_new: mapper_parse.Mapper = self.xml_parse_results_new.get(xml_file_path)
-        methods = xml_parse_result_new.result_maps + xml_parse_result_new.sqls + xml_parse_result_new.statements
+        methods = xml_parse_result_new.result_maps + xml_parse_result_new.sqls + xml_parse_result_new.statements if xml_parse_result_new else []
         self._xml_method_diff_analyze(methods, diff_parse_obj['line_num_added'], diff_parse_obj['line_content_added'], xml_parse_result_new, xml_name, xml_file_path, self.commit_or_branch_new)
         xml_parse_result_old = self.xml_parse_results_old.get(xml_file_path)
-        methods = xml_parse_result_old.result_maps + xml_parse_result_old.sqls + xml_parse_result_old.statements
+        methods = xml_parse_result_old.result_maps + xml_parse_result_old.sqls + xml_parse_result_old.statements if xml_parse_result_old else []
         self._xml_method_diff_analyze(methods, diff_parse_obj['line_num_removed'], diff_parse_obj['line_content_removed'], xml_parse_result_old, xml_name, xml_file_path, self.commit_or_branch_old)
 
     # Step 4.1.1
