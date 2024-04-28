@@ -153,6 +153,11 @@ class JavaParse(object):
                         var_declarator = node.declarators[0].name
                         var_declarator_type = self._deal_declarator_type(node.type, import_map, method_invocation, BODY, package_name, filepath)
                         variable_map[var_declarator] = var_declarator_type
+                        initializer = node.declarators[0].initializer
+                        if not initializer:
+                            continue
+                        for init_path, init_node in initializer.filter(javalang.tree.MemberReference):
+                            self._deal_member_reference(init_node, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
                     for path, node in body.filter(javalang.tree.ClassCreator):
                         qualifier = node.type.name
                         qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
@@ -527,6 +532,19 @@ class JavaParse(object):
                     var_declarator_type_argument = var_declarator_type_argument[0].upper() + var_declarator_type_argument[1:]
             var_declarator_type_arguments.append(var_declarator_type_argument)
         return var_declarator_type_arguments
+
+    def _deal_member_reference(self, member_reference, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
+        member = member_reference.member
+        qualifier: str = member_reference.qualifier
+        if not qualifier:
+            self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+        else:
+            if qualifier.count('.') > 1:
+                return
+            qualifier_type = import_map.get(qualifier, None)
+            if not qualifier_type:
+                return
+            self._add_field_used_to_method_invocation(method_invocation, qualifier_type, member, [None])
 
     def _deal_type(self, argument):
         if not argument:
