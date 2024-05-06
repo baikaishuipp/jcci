@@ -4,6 +4,7 @@ import json
 import javalang
 from .database import SqliteHelper
 from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST
+from . import config as config
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
@@ -665,6 +666,12 @@ class JavaParse(object):
             extend_new_map.update(extend_class_fields_map)
             return extend_new_map
 
+    def _is_valid_prefix(self, import_str):
+        for prefix in config.package_prefix:
+            if import_str.startswith(prefix):
+                return True
+        return False
+
     def parse_java_file(self, filepath: str, commit_or_branch: str):
         if not filepath.endswith('.java'):
             return
@@ -703,7 +710,7 @@ class JavaParse(object):
         # 处理 field 信息
         field_list = self._parse_fields(tree.types[0].fields, package_name, class_id, import_map)
         field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
-        import_map = dict((k, v) for k, v in import_map.items() if v.startswith('com.') or v.startswith('cn.'))
+        import_map = dict((k, v) for k, v in import_map.items() if self._is_valid_prefix(v))
 
         # 将extend class的field导进来
         extends_class_fields_map = self._get_extends_class_fields_map(class_id)
