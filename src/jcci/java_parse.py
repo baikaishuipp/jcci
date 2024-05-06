@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import json
 import javalang
@@ -7,6 +8,7 @@ from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, \
     PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST, JAVA_UTIL_TYPE
 from . import config as config
 
+sys.setrecursionlimit(10000)
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 class JavaParse(object):
