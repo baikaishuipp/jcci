@@ -3,7 +3,8 @@ import logging
 import json
 import javalang
 from .database import SqliteHelper
-from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST
+from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, \
+    PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST, JAVA_UTIL_TYPE
 from . import config as config
 
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
@@ -89,6 +90,8 @@ class JavaParse(object):
             if field_type.lower() not in JAVA_BASIC_TYPE:
                 if field_type in import_map.keys():
                     field_type = import_map.get(field_type)
+                elif field_type in JAVA_UTIL_TYPE and 'java.util' in import_map.values():
+                    field_type = field_type
                 else:
                     import_map[field_obj.type.name] = package_name + '.' + field_obj.type.name
                     field_type = package_name + '.' + field_type
