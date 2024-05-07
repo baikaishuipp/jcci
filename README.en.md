@@ -6,6 +6,9 @@ Java code commit impact analysis, is a pure python library that analyzes the imp
 
 PYPI: [jcci](https://pypi.org/project/jcci/) (It will be several versions behind github)
 
+#### Achieve Effect
+![效果图](./images/cii-result-tree.png)
+
 #### Software Architecture
 The general principle is the same as Find Usage of Idea, locate the impact of the code through code changes, and continuously traverse the affected classes and methods until the top controller layer is found
 
