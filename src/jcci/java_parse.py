@@ -319,8 +319,7 @@ class JavaParse(object):
         method_end_line = method_obj.position.line
         while True:
             if isinstance(method_obj, list):
-                if None in method_obj:
-                    method_obj.remove(None)
+                method_obj = [obj for obj in method_obj if obj and not isinstance(obj, str)]
                 if len(method_obj) == 0:
                     break
                 length = len(method_obj)
