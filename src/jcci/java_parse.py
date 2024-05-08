@@ -137,6 +137,10 @@ class JavaParse(object):
             else:
                 self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
 
+    def _parse_method_body_this(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation):
+        for path, node in body.filter(javalang.tree.This):
+            self._parse_node_selectors(node.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
+
     def _parse_method_body_method_invocation(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation, methods, method_name_entity_map, class_id):
         for path, node in body.filter(javalang.tree.MethodInvocation):
             if node in skip_method_invocation:
@@ -193,23 +197,24 @@ class JavaParse(object):
             return
         selector_qualifier_type = qualifier_type
         for selector in selectors:
-            if type(selector) != javalang.tree.MethodInvocation:
-                continue
             if selector in skip_method_invocation:
                 continue
             selector_member = selector.member
-            selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-            selector_line = selector.position.line
-            selector_method = f'{selector_member}({",".join(selector_arguments)})'
-            self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
-            if not self._is_valid_prefix(selector_qualifier_type):
-                continue
-            selector_package_class, method_params, method_db = self._find_method_in_package_class(selector_qualifier_type, selector_member, selector_arguments)
-            if not method_db:
-                continue
-            method_db_type = method_db.get("return_type", method_db.get("field_type"))
-            selector_qualifier_type = method_db_type
+            if type(selector) == javalang.tree.MethodInvocation:
+                selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                selector_line = selector.position.line
+                selector_method = f'{selector_member}({",".join(selector_arguments)})'
+                self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
+                selector_package_class, method_params, method_db = self._find_method_in_package_class(selector_qualifier_type, selector_member, selector_arguments)
+                if not method_db:
+                    continue
+                method_db_type = method_db.get("return_type", method_db.get("field_type"))
+                selector_qualifier_type = method_db_type
+            elif type(selector) == javalang.tree.MemberReference:
+                selector_qualifier_type = self._get_var_type(selector_member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
             skip_method_invocation.append(selector)
+        if self._is_valid_prefix(selector_qualifier_type):
+            self._add_entity_used_to_method_invocation(method_invocation, selector_qualifier_type, BODY)
 
     def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
         # 处理 methods
@@ -251,6 +256,7 @@ class JavaParse(object):
                 for body in method_obj.body:
                     self._parse_method_body_variable(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath)
                     self._parse_method_body_class_creator(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
+                    self._parse_method_body_this(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
                     self._parse_method_body_method_invocation(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation, methods, method_name_entity_map, class_id)
             method_db = {
                 'class_id': class_id,
