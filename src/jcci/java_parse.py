@@ -700,7 +700,7 @@ class JavaParse(object):
 
     def _is_valid_prefix(self, import_str):
         for prefix in config.package_prefix:
-            if import_str.startswith(prefix):
+            if import_str and import_str.startswith(prefix):
                 return True
         return False
 
