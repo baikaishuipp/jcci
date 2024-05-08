@@ -161,6 +161,8 @@ class JavaParse(object):
                 qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, member, node_arguments)
                 if not method_db:
                     continue
+                if method_params != node_method:
+                    self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
                 method_db_type = method_db.get("return_type", method_db.get("field_type"))
                 self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
             # 在一个类的方法或父类方法
