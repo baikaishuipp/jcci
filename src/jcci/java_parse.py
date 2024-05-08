@@ -301,10 +301,11 @@ class JavaParse(object):
         extend_class_id = extend_class_entity['class_id']
         methods_db_list = self.sqlite.select_data(f'SELECT method_name, parameters, return_type FROM methods WHERE class_id={extend_class_id} and method_name = "{method_name}"')
         data_in_annotation = [annotation for annotation in json.loads(extend_class_entity['annotations']) if annotation['name'] in ['Data', 'Getter', 'Setter', 'Builder', 'NoArgsConstructor', 'AllArgsConstructor']]
-        if not methods_db_list and data_in_annotation and method_name.startswith('get') or method_name.startswith('set'):
+        if not methods_db_list and data_in_annotation and (method_name.startswith('get') or method_name.startswith('set')):
             field_name = method_name[3:]
-            field_name = field_name[0].lower() + field_name[1:] if len(field_name) > 1 else field_name[0].lower()
-            methods_db_list = self.sqlite.select_data(f'SELECT field_name, field_type FROM field WHERE class_id={extend_class_id} and field_name = "{field_name}"')
+            if field_name:
+                field_name = field_name[0].lower() + field_name[1:] if len(field_name) > 1 else field_name[0].lower()
+                methods_db_list = self.sqlite.select_data(f'SELECT field_name, field_type FROM field WHERE class_id={extend_class_id} and field_name = "{field_name}"')
         if not methods_db_list and not extend_class_entity['extends_class']:
             return None, None, None
         if not methods_db_list:
