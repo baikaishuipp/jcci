@@ -201,6 +201,8 @@ class JavaParse(object):
         for selector in selectors:
             if selector in skip_method_invocation:
                 continue
+            if type(selector) == javalang.tree.ArraySelector:
+                continue
             selector_member = selector.member
             if type(selector) == javalang.tree.MethodInvocation:
                 selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
@@ -301,7 +303,7 @@ class JavaParse(object):
         data_in_annotation = [annotation for annotation in json.loads(extend_class_entity['annotations']) if annotation['name'] in ['Data', 'Getter', 'Setter', 'Builder', 'NoArgsConstructor', 'AllArgsConstructor']]
         if not methods_db_list and data_in_annotation and method_name.startswith('get') or method_name.startswith('set'):
             field_name = method_name[3:]
-            field_name = field_name[0].lower() + field_name[1:]
+            field_name = field_name[0].lower() + field_name[1:] if len(field_name) > 1 else field_name[0].lower()
             methods_db_list = self.sqlite.select_data(f'SELECT field_name, field_type FROM field WHERE class_id={extend_class_id} and field_name = "{field_name}"')
         if not methods_db_list and not extend_class_entity['extends_class']:
             return None, None, None
@@ -755,8 +757,8 @@ class JavaParse(object):
         # 处理 class 信息
         class_id, new_add = self._parse_class(tree.types[0], filepath, package_name, import_list, commit_or_branch)
         # 已经处理过了，返回
-        if not new_add:
-            return
+        # if not new_add:
+        #     return
         # 导入import
         imports = [dict(import_obj, class_id=class_id, project_id=self.project_id) for import_obj in import_list]
         self.sqlite.update_data(f'DELETE FROM import WHERE class_id={class_id}')
