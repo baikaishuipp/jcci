@@ -117,98 +117,95 @@ class JavaParse(object):
         self.sqlite.insert_data('field', field_list)
         return field_list
 
-    def _parse_method_body_variable(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath):
-        for path, node in body.filter(javalang.tree.VariableDeclaration):
-            var_declarator = node.declarators[0].name
-            var_declarator_type = self._deal_declarator_type(node.type, import_map, method_invocation, BODY, package_name, filepath)
-            variable_map[var_declarator] = var_declarator_type
-            initializer = node.declarators[0].initializer
-            if not initializer:
-                continue
-            for init_path, init_node in initializer.filter(javalang.tree.MemberReference):
-                self._deal_member_reference(init_node, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+    def _parse_method_body_variable(self, node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
+        var_declarator = node.declarators[0].name
+        var_declarator_type = self._deal_declarator_type(node.type, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+        variable_map[var_declarator] = var_declarator_type
+        initializer = node.declarators[0].initializer
+        if not initializer:
+            return var_declarator_type
+        for init_path, init_node in initializer.filter(javalang.tree.MemberReference):
+            self._deal_member_reference(init_node, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+        return var_declarator_type
 
-    def _parse_method_body_class_creator(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation):
-        for path, node in body.filter(javalang.tree.ClassCreator):
-            qualifier = node.type.name
+    def _parse_method_body_class_creator(self, node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
+        qualifier = node.type.name
+        qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+        if node.selectors is None:
+            self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
+        else:
+            self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+        return qualifier_type
+
+    def _parse_method_body_method_invocation(self, node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
+        qualifier = node.qualifier
+        member = node.member
+        return_type = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
+        # 类静态方法调用
+        if not qualifier and not member[0].islower():
+            qualifier_type = self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+            # todo a.b.c
+            qualifier_type = self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            return_type = qualifier_type
+        elif qualifier:
             qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-            if node.selectors is None:
-                self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
-            else:
-                self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
+            node_arguments = self._deal_var_type(node.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            node_line = node.position.line
+            node_method = f'{member}({",".join(node_arguments)})'
+            self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
+            qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, member, node_arguments)
+            if not method_db:
+                return qualifier_type
+            if method_params != node_method:
+                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
+            method_db_type = method_db.get("return_type", method_db.get("field_type"))
+            method_db_type = self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            return_type = method_db_type
+        # 在一个类的方法或父类方法
+        elif member:
+            class_db = self.sqlite.select_data(f'SELECT package_name, class_name, extends_class FROM class where class_id={class_id} limit 1')[0]
+            package_class = class_db['package_name'] + '.' + class_db['class_name']
+            node_line = node.position.line
+            node_arguments = self._deal_var_type(node.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            # todo 同级方法, 判断参数长度，不精确
+            if method_name_entity_map.get(member):
+                same_class_method = None
+                max_score = -float('inf')
+                for method_item in methods:
+                    if method_item.name != member or len(node.arguments) != len(method_item.parameters):
+                        continue
+                    method_item_param_types = [self._deal_declarator_type(parameter.type, PARAMETERS, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id) for parameter in method_item.parameters]
+                    score = self._calculate_similar_score_method_params(node_arguments, method_item_param_types)
+                    if score > max_score:
+                        max_score = score
+                        same_class_method = method_item
+                if same_class_method:
+                    node_arguments = self._deal_var_type(same_class_method.parameters, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                    node_method = f'{member}({",".join(node_arguments)})'
+                    self._add_method_used_to_method_invocation(method_invocation, package_class, node_method, [node_line])
+                    return_type = self._deal_declarator_type(same_class_method.return_type, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            # todo 继承方法
+            elif class_db['extends_class']:
+                extends_package_class, method_params, method_db = self._find_method_in_package_class(class_db['extends_class'], member, node_arguments)
+                if extends_package_class:
+                    self._add_method_used_to_method_invocation(method_invocation, extends_package_class, method_params, [node_line])
+                    return_type = method_db.get("return_type", method_db.get("field_type"))
+        return return_type
 
-    def _parse_method_body_this(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation):
-        for path, node in body.filter(javalang.tree.This):
-            self._parse_node_selectors(node.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
-
-    def _parse_method_body_method_invocation(self, body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation, methods, method_name_entity_map, class_id):
-        for path, node in body.filter(javalang.tree.MethodInvocation):
-            if node in skip_method_invocation:
-                continue
-            qualifier = node.qualifier
-            member = node.member
-            # 类静态方法调用
-            if not qualifier and not member[0].islower():
-                qualifier_type = self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                # todo a.b.c
-                self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
-            elif qualifier:
-                qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                node_line = node.position.line
-                node_method = f'{member}({",".join(node_arguments)})'
-                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
-                qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, member, node_arguments)
-                if not method_db:
-                    continue
-                if method_params != node_method:
-                    self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
-                method_db_type = method_db.get("return_type", method_db.get("field_type"))
-                self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
-            # 在一个类的方法或父类方法
-            elif member:
-                class_db = self.sqlite.select_data(f'SELECT package_name, class_name, extends_class FROM class where class_id={class_id} limit 1')[0]
-                package_class = class_db['package_name'] + '.' + class_db['class_name']
-                node_line = node.position.line
-                node_arguments = self._deal_var_type(node.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                # todo 同级方法, 判断参数长度，不精确
-                if method_name_entity_map.get(member):
-                    same_class_method = None
-                    max_score = -float('inf')
-                    for method_item in methods:
-                        if method_item.name != member or len(node.arguments) != len(method_item.parameters):
-                            continue
-                        method_item_param_types = [self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS, package_name, filepath) for parameter in method_item.parameters]
-                        score = self._calculate_similar_score_method_params(node_arguments, method_item_param_types)
-                        if score > max_score:
-                            max_score = score
-                            same_class_method = method_item
-                    if same_class_method:
-                        node_arguments = self._deal_var_type(same_class_method.parameters, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                        node_method = f'{member}({",".join(node_arguments)})'
-                        self._add_method_used_to_method_invocation(method_invocation, package_class, node_method, [node_line])
-                # todo 继承方法
-                elif class_db['extends_class']:
-                    extends_package_class, method_params, method_db = self._find_method_in_package_class(class_db['extends_class'], member, node_arguments)
-                    if extends_package_class:
-                        self._add_method_used_to_method_invocation(method_invocation, extends_package_class, method_params, [node_line])
-            skip_method_invocation.append(node)
-
-    def _parse_node_selectors(self, selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation):
+    def _parse_node_selectors(self, selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
         if not selectors:
-            return
+            return qualifier_type
         selector_qualifier_type = qualifier_type
         for selector in selectors:
-            if selector in skip_method_invocation:
-                continue
             if type(selector) == javalang.tree.ArraySelector:
                 continue
             selector_member = selector.member
             if type(selector) == javalang.tree.MethodInvocation:
-                selector_arguments = self._deal_var_type(selector.arguments, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                selector_arguments = self._deal_var_type(selector.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
                 selector_line = selector.position.line
                 selector_method = f'{selector_member}({",".join(selector_arguments)})'
-                self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
+                if self._is_valid_prefix(selector_qualifier_type):
+                    self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
                 selector_package_class, method_params, method_db = self._find_method_in_package_class(selector_qualifier_type, selector_member, selector_arguments)
                 if not method_db:
                     continue
@@ -216,9 +213,9 @@ class JavaParse(object):
                 selector_qualifier_type = method_db_type
             elif type(selector) == javalang.tree.MemberReference:
                 selector_qualifier_type = self._get_var_type(selector_member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-            skip_method_invocation.append(selector)
-        if self._is_valid_prefix(selector_qualifier_type):
-            self._add_entity_used_to_method_invocation(method_invocation, selector_qualifier_type, BODY)
+                if self._is_valid_prefix(selector_qualifier_type):
+                    self._add_field_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_member, [None])
+        return selector_qualifier_type
 
     def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
         # 处理 methods
@@ -236,32 +233,36 @@ class JavaParse(object):
             access_modifier = [m for m in list(method_obj.modifiers) if m.startswith('p')][0] if list([m for m in list(method_obj.modifiers) if m.startswith('p')]) else 'public'
             is_static = 'static' in list(method_obj.modifiers)
             is_abstract = 'abstract' in list(method_obj.modifiers)
-            # 处理返回对象
-            return_type = self._deal_declarator_type(method_obj.return_type, import_map, method_invocation, RETURN_TYPE, package_name, filepath)
-            method_start_line = method_obj.position.line
-            if method_obj.annotations:
-                method_start_line = method_obj.annotations[0].position.line
-            method_end_line = self._get_method_end_line(method_obj)
-            method_body = lines[method_start_line - 1: method_end_line + 1]
-            # 处理参数
             parameters = []
+            parameters_map = {}
             for parameter in method_obj.parameters:
                 parameter_obj = {
-                    'parameter_type': self._deal_declarator_type(parameter.type, import_map, method_invocation, PARAMETERS, package_name, filepath),
+                    'parameter_type': self._deal_declarator_type(parameter.type, PARAMETERS, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id),
                     'parameter_name': parameter.name,
                     'parameter_varargs': parameter.varargs
                 }
                 parameters.append(parameter_obj)
             parameters_map = {parameter['parameter_name']: parameter['parameter_type'] for parameter in parameters}
+            # 处理返回对象
+            return_type = self._deal_declarator_type(method_obj.return_type, RETURN_TYPE, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            method_start_line = method_obj.position.line
+            if method_obj.annotations:
+                method_start_line = method_obj.annotations[0].position.line
+            method_end_line = self._get_method_end_line(method_obj)
+            method_body = lines[method_start_line - 1: method_end_line + 1]
 
             # 处理方法体
-            if method_obj.body:
-                skip_method_invocation = []
-                for body in method_obj.body:
-                    self._parse_method_body_variable(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath)
-                    self._parse_method_body_class_creator(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
-                    self._parse_method_body_this(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation)
-                    self._parse_method_body_method_invocation(body, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, skip_method_invocation, methods, method_name_entity_map, class_id)
+            if not method_obj.body:
+                method_obj.body = []
+            for body in method_obj.body:
+                for path, node in body.filter(javalang.tree.VariableDeclaration):
+                    self._parse_method_body_variable(node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                for path, node in body.filter(javalang.tree.ClassCreator):
+                    self._parse_method_body_class_creator(node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                for path, node in body.filter(javalang.tree.This):
+                    self._parse_node_selectors(node.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                for path, node in body.filter(javalang.tree.MethodInvocation):
+                    self._parse_method_body_method_invocation(node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             method_db = {
                 'class_id': class_id,
                 'project_id': self.project_id,
@@ -303,9 +304,8 @@ class JavaParse(object):
         data_in_annotation = [annotation for annotation in json.loads(extend_class_entity['annotations']) if annotation['name'] in ['Data', 'Getter', 'Setter', 'Builder', 'NoArgsConstructor', 'AllArgsConstructor']]
         if not methods_db_list and data_in_annotation and (method_name.startswith('get') or method_name.startswith('set')):
             field_name = method_name[3:]
-            if field_name:
-                field_name = field_name[0].lower() + field_name[1:] if len(field_name) > 1 else field_name[0].lower()
-                methods_db_list = self.sqlite.select_data(f'SELECT field_name, field_type FROM field WHERE class_id={extend_class_id} and field_name = "{field_name}"')
+            field_name = field_name[0].lower() + field_name[1:] if len(field_name) > 1 else field_name[0].lower()
+            methods_db_list = self.sqlite.select_data(f'SELECT field_name, field_type FROM field WHERE class_id={extend_class_id} and field_name = "{field_name}"')
         if not methods_db_list and not extend_class_entity['extends_class']:
             return None, None, None
         if not methods_db_list:
@@ -314,7 +314,7 @@ class JavaParse(object):
             filter_methods = [method for method in methods_db_list if len(json.loads(method.get('parameters', '[]'))) == len(method_arguments)]
             if not filter_methods:
                 return self._find_method_in_package_class(extend_class_entity['extends_class'], method_name, method_arguments)
-            package_class = extend_class_entity['package_name'] + '.' + extend_class_entity['class_name']
+            # package_class = extend_class_entity['package_name'] + '.' + extend_class_entity['class_name']
             if len(filter_methods) == 1:
                 method_db = filter_methods[0]
                 method_params = f'{method_db.get("method_name", method_name)}({",".join([param["parameter_type"] for param in json.loads(method_db.get("parameters", "[]"))])})'
@@ -528,47 +528,41 @@ class JavaParse(object):
         else:
             method_invocation[package_class][FIELDS][field] += lines
 
-    def _deal_declarator_type(self, node_type, import_map, method_invocation, section, package_name, filepath):
+    def _deal_declarator_type(self, node_type, section, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
         if node_type is None:
             return node_type
         if type(node_type) == javalang.tree.BasicType:
             node_name = node_type.name
             node_name = node_name[0].upper() + node_name[1:]
             return node_name
-        var_declarator_type = node_type.name
-        if var_declarator_type in import_map.keys():
-            var_declarator_type = import_map.get(var_declarator_type)
-            self._add_entity_used_to_method_invocation(method_invocation, var_declarator_type, section)
-        else:
-            node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type + ".java"
-            if os.path.exists(node_path):
-                var_declarator_type = f'{package_name}.{var_declarator_type}'
-            else:
-                var_declarator_type = var_declarator_type[0].upper() + var_declarator_type[1:]
-        var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, import_map, method_invocation, section, package_name, filepath)
+        var_declarator_type = self._parse_sub_type(node_type)
+        var_declarator_type = self._get_var_type(var_declarator_type, {}, {}, {}, import_map, method_invocation, section, package_name, filepath)
+        var_declarator_type_arguments = self._deal_arguments_type(node_type.arguments, section, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
         if var_declarator_type_arguments:
             var_declarator_type = var_declarator_type + '<' + '#'.join(var_declarator_type_arguments) + '>'
         return var_declarator_type
 
-    def _deal_arguments_type(self, arguments, import_map, method_invocation, section, package_name, filepath):
+    def _parse_sub_type(self, type_obj):
+        type_name = type_obj.name
+        if 'sub_type' in type_obj.attrs and type_obj.sub_type:
+            type_name = type_name + '.' + self._parse_sub_type(type_obj.sub_type)
+        return type_name
+
+    def _deal_arguments_type(self, arguments, section, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
         var_declarator_type_arguments_new = []
         if not arguments:
             return var_declarator_type_arguments_new
         var_declarator_type_arguments = []
         for argument in arguments:
-            if type(argument) == javalang.tree.MethodInvocation:
-                var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
-                continue
+            argument_type = type(argument)
+            if argument_type == javalang.tree.MethodInvocation:
+                return self._parse_method_body_method_invocation(argument, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            elif argument_type == javalang.tree.This:
+                return self._parse_node_selectors(argument.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             var_declarator_type_argument = self._deal_type(argument)
-            if var_declarator_type_argument in import_map.keys():
-                var_declarator_type_argument = import_map.get(var_declarator_type_argument)
+            var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+            if self._is_valid_prefix(var_declarator_type_argument):
                 self._add_entity_used_to_method_invocation(method_invocation, var_declarator_type_argument, section)
-            else:
-                node_path = "/".join(filepath.split("/")[0: -1]) + "/" + var_declarator_type_argument + ".java"
-                if os.path.exists(node_path):
-                    var_declarator_type_argument = f'{package_name}.{var_declarator_type_argument}'
-                elif var_declarator_type_argument != PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN:
-                    var_declarator_type_argument = var_declarator_type_argument[0].upper() + var_declarator_type_argument[1:]
             var_declarator_type_arguments.append(var_declarator_type_argument)
         return var_declarator_type_arguments
 
@@ -576,14 +570,12 @@ class JavaParse(object):
         member = member_reference.member
         qualifier: str = member_reference.qualifier
         if not qualifier:
-            self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+            qualifier_type = self._get_var_type(member, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
         else:
-            if qualifier.count('.') > 1:
-                return
-            qualifier_type = import_map.get(qualifier, None)
-            if not qualifier_type:
-                return
-            self._add_field_used_to_method_invocation(method_invocation, qualifier_type, member, [None])
+            qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+            if self._is_valid_prefix(qualifier_type):
+                self._add_field_used_to_method_invocation(method_invocation, qualifier_type, member, [None])
+        return qualifier_type
 
     def _deal_type(self, argument):
         if not argument:
@@ -595,8 +587,6 @@ class JavaParse(object):
             var_declarator_type_argument = argument.type.name
         elif argument_type == javalang.tree.Literal:
             var_declarator_type_argument = self._deal_literal_type(argument.value)
-        elif argument_type == javalang.tree.This:
-            var_declarator_type_argument = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
         elif argument_type == javalang.tree.LambdaExpression:
             var_declarator_type_argument = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
         elif argument_type == javalang.tree.BinaryOperation:
@@ -629,7 +619,7 @@ class JavaParse(object):
             return 'Int'
         return 'String'
 
-    def _deal_var_type(self, arguments, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
+    def _deal_var_type(self, arguments, section, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
         var_declarator_type_arguments_new = []
         if not arguments:
             return var_declarator_type_arguments_new
@@ -637,14 +627,17 @@ class JavaParse(object):
         for argument in arguments:
             argument_type = type(argument)
             if argument_type == javalang.tree.MethodInvocation:
-                var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
-                continue
-            elif argument_type == javalang.tree.MemberReference and argument.qualifier:
-                var_declarator_type_arguments.append(PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN)
-                continue
-            var_declarator_type_argument = self._deal_type(argument)
-            var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
-            type_arguments = self._deal_arguments_type(argument.type.arguments, import_map, method_invocation, section, package_name, filepath) \
+                var_declarator_type_argument = self._parse_method_body_method_invocation(argument, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            elif argument_type == javalang.tree.MemberReference:
+                var_declarator_type_argument = self._deal_member_reference(argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+            elif argument_type == javalang.tree.This:
+                var_declarator_type_argument = self._parse_node_selectors(argument.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                if var_declarator_type_argument is None:
+                    var_declarator_type_argument = PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN
+            else:
+                var_declarator_type_argument = self._deal_type(argument)
+                var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+            type_arguments = self._deal_arguments_type(argument.type.arguments, section, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id) \
                 if 'type' in argument.attrs \
                    and not isinstance(argument.type, str) \
                    and 'arguments' in argument.type.attrs \
@@ -658,27 +651,56 @@ class JavaParse(object):
     def _get_var_type(self, var, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath):
         if not var:
             return var
+        if var.lower() in JAVA_BASIC_TYPE or var in JAVA_UTIL_TYPE:
+            return var
+        var_path = "/".join(filepath.split("/")[0: -1]) + "/" + var + ".java"
         if var in parameters_map.keys():
             return parameters_map.get(var)
-        if var in variable_map.keys():
+        elif var in variable_map.keys():
             return variable_map.get(var)
-        if var in field_map.keys():
+        elif var in field_map.keys():
             field_type = field_map.get(var)['field_type']
             package_class = field_map.get(var)['package_class']
             start_line = field_map.get(var)['start_line']
             self._add_field_used_to_method_invocation(method_invocation, package_class, var, [start_line])
             return field_type
-        if var in import_map.keys():
+        elif var in import_map.keys():
+            if '.' in var:
+                return self._parse_layer_call_var_type(var, import_map, method_invocation)
             var_type = import_map.get(var)
-            self._add_entity_used_to_method_invocation(method_invocation, var_type, section)
+            # self._add_entity_used_to_method_invocation(method_invocation, var_type, section)
+            return var_type
+        elif os.path.exists(var_path):
+            var_type = f'{package_name}.{var}'
             return var_type
         else:
-            var_path = "/".join(filepath.split("/")[0: -1]) + "/" + var + ".java"
-            if os.path.exists(var_path):
-                var_type = f'{package_name}.{var}'
+            return self._parse_layer_call_var_type(var, import_map, method_invocation)
+
+    def _parse_layer_call_var_type(self, var, import_map, method_invocation):
+        ## 判断是否内部类
+        var_split = var.split('.')
+        var_class = var_split[-1]
+        if var_class.lower() in JAVA_BASIC_TYPE or var_class in JAVA_UTIL_TYPE:
+            return var
+        elif len(var_split) > 1:
+            var_field = var_split[-1]
+            var_class = var_split[-2]
+            if var_class in import_map.keys():
+                var_type = import_map.get(var_class)
+                var_type_package = '.'.join(var_type.split('.')[0: -1])
+                var_field_db = self.sqlite.select_data(f'select field_type from field where project_id={self.project_id} and field_name="{var_field}" '
+                                                       f'and class_id in (select class_id from class where project_id={self.project_id} and class_name="{var_class}" and package_name="{var_type_package}")')
+                if var_field_db:
+                    self._add_field_used_to_method_invocation(method_invocation, var_type, var_field, [None])
+                    return var_field_db[0]['field_type']
+            var_package_end = '.'.join(var_split[0: -1])
+            sql = "select package_name, class_name from class where project_id = {} and class_name=\"{}\" and package_name like \"%{}\"".format(self.project_id, var_class, var_package_end)
+            var_class_db = self.sqlite.select_data(sql)
+            if var_class_db:
+                var_type = var_class_db[0]['package_name'] + '.' + var_class_db[0]['class_name']
                 return var_type
-            elif var != PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN:
-                var = var[0].upper() + var[1:]
+        elif var != PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN:
+            return var[0].upper() + var[1:]
         return var
 
     def _get_extends_class_fields_map(self, class_id: int):
@@ -724,6 +746,36 @@ class JavaParse(object):
             for import_filepath in import_filepaths:
                 self.parse_java_file(import_filepath, commit_or_branch)
 
+    def _parse_tree_class(self, class_declaration, filepath, tree_imports, package_name, commit_or_branch, lines):
+        class_name = class_declaration.name
+        package_class = package_name + '.' + class_name
+        import_list = self._parse_imports(tree_imports)
+        import_map = {import_obj['import_path'].split('.')[-1]: import_obj['import_path'] for import_obj in import_list}
+
+        # 处理 class 信息
+        class_id, new_add = self._parse_class(class_declaration, filepath, package_name, import_list, commit_or_branch)
+        # 已经处理过了，返回
+        # if not new_add:
+        #     return
+        # 导入import
+        imports = [dict(import_obj, class_id=class_id, project_id=self.project_id) for import_obj in import_list]
+        self.sqlite.update_data(f'DELETE FROM import WHERE class_id={class_id}')
+        self.sqlite.insert_data('import', imports)
+
+        # 处理 field 信息
+        field_list = self._parse_fields(class_declaration.fields, package_name, class_id, import_map)
+        field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
+        import_map = dict((k, v) for k, v in import_map.items() if self._is_valid_prefix(v))
+
+        # 将extend class的field导进来
+        extends_class_fields_map = self._get_extends_class_fields_map(class_id)
+        extends_class_fields_map.update(field_map)
+        inner_class_declarations = [inner_class for inner_class in class_declaration.body if type(inner_class) == javalang.tree.ClassDeclaration]
+        for inner_class_obj in inner_class_declarations:
+            self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines)
+        # 处理 methods 信息
+        self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
+
     def parse_java_file(self, filepath: str, commit_or_branch: str):
         if filepath in self.parsed_filepath or not filepath.endswith('.java'):
             return
@@ -741,40 +793,20 @@ class JavaParse(object):
         except Exception as e:
             logging.error(f"Error parsing {filepath}: {e}")
             return
+
         # 处理包信息
         package_name = tree.package.name if tree.package else 'unknown'
-        class_name = tree.types[0].name
+        class_declaration = tree.types[0]
+        class_name = class_declaration.name
         package_class = package_name + '.' + class_name
-        # 处理 import 信息
         if not self.sibling_dirs:
             package_path = package_class.replace('.', '/') + '.java'
             base_filepath = filepath.replace(package_path, '')
             self.sibling_dirs = self._get_sibling_dirs(base_filepath.replace('src/main/java/', ''))
+        # 处理 import 信息
         self._parse_import_file(tree.imports, commit_or_branch)
         logging.info(f'Parsing java file: {filepath}')
-        import_list = self._parse_imports(tree.imports)
-        import_map = {import_obj['import_path'].split('.')[-1]: import_obj['import_path'] for import_obj in import_list}
-
-        # 处理 class 信息
-        class_id, new_add = self._parse_class(tree.types[0], filepath, package_name, import_list, commit_or_branch)
-        # 已经处理过了，返回
-        # if not new_add:
-        #     return
-        # 导入import
-        imports = [dict(import_obj, class_id=class_id, project_id=self.project_id) for import_obj in import_list]
-        self.sqlite.update_data(f'DELETE FROM import WHERE class_id={class_id}')
-        self.sqlite.insert_data('import', imports)
-
-        # 处理 field 信息
-        field_list = self._parse_fields(tree.types[0].fields, package_name, class_id, import_map)
-        field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
-        import_map = dict((k, v) for k, v in import_map.items() if self._is_valid_prefix(v))
-
-        # 将extend class的field导进来
-        extends_class_fields_map = self._get_extends_class_fields_map(class_id)
-        extends_class_fields_map.update(field_map)
-        # 处理 methods 信息
-        self._parse_method(tree.types[0].methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
+        self._parse_tree_class(class_declaration, filepath, tree.imports, package_name, commit_or_branch, lines)
 
     def parse_java_file_list(self, filepath_list: list, commit_or_branch: str):
         for file_path in filepath_list:
