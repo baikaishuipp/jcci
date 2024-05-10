@@ -21,7 +21,8 @@ NODE_TYPE_MAPPER_STATEMENT = 'statement'
 DIFF_TYPE_CHANGED = 'changed'
 DIFF_TYPE_IMPACTED = 'impacted'
 
-JAVA_BASIC_TYPE = ['string', 'int', 'boolean', 'long', 'byte', 'short', 'float', 'double', 'char']
+JAVA_BASIC_TYPE = ['string', 'int', 'integer', 'boolean', 'long', 'byte', 'short', 'float', 'double', 'char']
+JAVA_BASIC_TYPE_SWITCH = ['int', 'integer', 'boolean', 'long', 'byte', 'short', 'float', 'double', 'char']
 JAVA_UTIL_TYPE = [
     'ArrayList', 'Base64', 'Calendar', 'Collection', 'Collections', 'Comparators', 'Date', 'Dictionary',
     'EnumMap', 'EnumSet', 'EventListener', 'EventObject', 'Formatter',
