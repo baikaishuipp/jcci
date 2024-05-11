@@ -96,23 +96,32 @@ class JavaParse(object):
                 pass
             elif field_type in import_map.keys():
                 field_type = import_map.get(field_type)
+
             else:
                 in_import = False
+
                 for key in import_map.keys():
+
                     if key[0].isupper():
                         continue
+
                     field_type_db = self.sqlite.select_data(f'select class_id from class where project_id={self.project_id} and package_name = "{import_map.get(key)}" and class_name = "{field_type}" limit 1')
+
                     if field_type_db:
                         field_type = f'{import_map.get(key)}.{field_type}'
                         in_import = True
                         break
+
                 if not in_import:
                     field_type_db = self.sqlite.select_data(f'select class_id from class where project_id={self.project_id} and package_name = "{package_class}" and class_name = "{field_type}" limit 1')
+
                     if field_type_db:
                         field_type = f'{package_class}.{field_type}'
+
                     else:
                         field_type = package_name + '.' + field_type
                     import_map[field_obj.type.name] = field_type
+
                 else:
                     import_map[field_obj.type.name] = field_type
             is_static = 'static' in list(field_obj.modifiers)
