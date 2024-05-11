@@ -81,18 +81,20 @@ class JavaParse(object):
             import_list.append(import_obj)
         return import_list
 
-    def _parse_fields(self, fields, package_name, class_id, import_map):
+    def _parse_fields(self, fields, package_name, class_name, class_id, import_map):
         field_list = []
+        package_class = package_name + "." + class_name
         for field_obj in fields:
             field_annotations = json.dumps(field_obj.annotations, default=lambda obj: obj.__dict__)
             access_modifier = next((m for m in list(field_obj.modifiers) if m.startswith('p')), 'public')
             field_name = field_obj.declarators[0].name
             field_type: str = field_obj.type.name
-            if field_type.lower() not in JAVA_BASIC_TYPE:
-                if field_type in import_map.keys():
-                    field_type = import_map.get(field_type)
+            if field_type.lower() in JAVA_BASIC_TYPE:
+                pass
                 elif field_type in JAVA_UTIL_TYPE and 'java.util' in import_map.values():
                     pass
+            elif field_type in import_map.keys():
+                field_type = import_map.get(field_type)
                 else:
                     in_import = False
                     for key in import_map.keys():
@@ -104,8 +106,12 @@ class JavaParse(object):
                             in_import = True
                             break
                     if not in_import:
-                        import_map[field_obj.type.name] = package_name + '.' + field_obj.type.name
+                    field_type_db = self.sqlite.select_data(f'select class_id from class where project_id={self.project_id} and package_name = "{package_class}" and class_name = "{field_type}" limit 1')
+                    if field_type_db:
+                        field_type = f'{package_class}.{field_type}'
+                    else:
                         field_type = package_name + '.' + field_type
+                    import_map[field_obj.type.name] = field_type
                     else:
                         import_map[field_obj.type.name] = field_type
             is_static = 'static' in list(field_obj.modifiers)
@@ -808,7 +814,7 @@ class JavaParse(object):
         self.sqlite.insert_data('import', imports)
 
         # 处理 field 信息
-        field_list = self._parse_fields(class_declaration.fields, package_name, class_id, import_map)
+        field_list = self._parse_fields(class_declaration.fields, package_name, class_name, class_id, import_map)
         field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
         import_map = dict((k, v) for k, v in import_map.items() if self._is_valid_prefix(v))
 

@@ -164,10 +164,7 @@ class JCCI(object):
                 if ignore:
                     continue
                 filepath = filepath.replace('\\', '/')
-                for key in self.diff_parse_map.keys():
-                    if filepath.endswith(key):
-                        file_lists.append(filepath)
-                        break
+                file_lists.append(filepath)
         return file_lists
 
     # Step 3.3
@@ -717,8 +714,6 @@ class JCCI(object):
         os.system(f'cd {self.file_path} && git checkout {branch} && git pull')
         time.sleep(1)
 
-        self.xml_parse_results_new, self.xml_parse_results_old = self._parse_project(self.file_path, self.commit_or_branch_new, None)
-
         if not method_nums:
             method_nums_all = []
             # todo
@@ -739,5 +734,7 @@ class JCCI(object):
             'line_num_removed': [],
             'line_content_removed': []
         }
+
+        self.xml_parse_results_new, self.xml_parse_results_old = self._parse_project(self.file_path, self.commit_or_branch_new, None)
 
         self._start_analysis_diff_and_impact()
