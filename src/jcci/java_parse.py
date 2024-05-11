@@ -823,6 +823,11 @@ class JavaParse(object):
         self.sqlite.update_data(f'DELETE FROM import WHERE class_id={class_id}')
         self.sqlite.insert_data('import', imports)
 
+        # 处理 inner class
+        inner_class_declarations = [inner_class for inner_class in class_declaration.body if type(inner_class) == javalang.tree.ClassDeclaration]
+        for inner_class_obj in inner_class_declarations:
+            self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines)
+
         # 处理 field 信息
         field_list = self._parse_fields(class_declaration.fields, package_name, class_name, class_id, import_map)
         field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
@@ -831,9 +836,7 @@ class JavaParse(object):
         # 将extend class的field导进来
         extends_class_fields_map = self._get_extends_class_fields_map(class_id)
         extends_class_fields_map.update(field_map)
-        inner_class_declarations = [inner_class for inner_class in class_declaration.body if type(inner_class) == javalang.tree.ClassDeclaration]
-        for inner_class_obj in inner_class_declarations:
-            self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines)
+
         # 处理 methods 信息
         self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
 
