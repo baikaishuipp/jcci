@@ -803,10 +803,14 @@ class JavaParse(object):
             if is_wildcard:
                 import_filepaths = [file_path + '/src/main/java/' + import_path.replace('.', '/') for file_path in self.sibling_dirs]
                 for import_filepath in import_filepaths:
+                    if not os.path.exists(import_filepath):
+                        continue
                     java_files += self._list_files(import_filepath)
             else:
                 java_files = [file_path + '/src/main/java/' + import_path.replace('.', '/') + '.java' for file_path in self.sibling_dirs]
             for import_filepath in java_files:
+                if not os.path.exists(import_filepath):
+                    continue
                 self.parse_java_file(import_filepath, commit_or_branch)
 
     def _parse_tree_class(self, class_declaration, filepath, tree_imports, package_name, commit_or_branch, lines):
