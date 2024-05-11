@@ -843,9 +843,9 @@ class JavaParse(object):
         self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
 
     def parse_java_file(self, filepath: str, commit_or_branch: str):
-        if filepath in self.parsed_filepath or not filepath.endswith('.java'):
+        if filepath + '_' + commit_or_branch in self.parsed_filepath or not filepath.endswith('.java'):
             return
-        self.parsed_filepath.append(filepath)
+        self.parsed_filepath.append(filepath + '_' + commit_or_branch)
         try:
             with open(filepath, encoding='UTF-8') as fp:
                 file_content = fp.read()
