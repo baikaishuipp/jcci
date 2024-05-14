@@ -47,7 +47,7 @@ class JavaParse(object):
         extends_in_imports = [import_obj for import_obj in import_list if extends_class in import_obj['import_path']]
         return extends_in_imports[0]['import_path'] if extends_in_imports else package_name + '.' + extends_class
 
-    def _parse_class(self, node, filepath: str, package_name: str, import_list: list, commit_or_branch: str):
+    def _parse_class(self, node, filepath: str, package_name: str, import_list: list, commit_or_branch: str, parse_import_first):
         # 处理class信息
         documentation = node.documentation
         class_name = node.name
@@ -62,8 +62,10 @@ class JavaParse(object):
             package_path = package_class.replace('.', '/') + '.java'
             base_filepath = filepath.replace(package_path, '')
             for extends_package_class_item in extends_package_class_list:
+                if extends_package_class_item == package_class:
+                    continue
                 extends_class_filepath = base_filepath + extends_package_class_item.replace('.', '/') + '.java'
-                self.parse_java_file(extends_class_filepath, commit_or_branch)
+                self.parse_java_file(extends_class_filepath, commit_or_branch, parse_import_first=parse_import_first)
         implements = ','.join([implement.name for implement in node.implements]) if 'implements' in node.attrs and node.implements else None
         class_id, new_add = self.sqlite.add_class(filepath.replace('\\', '/'), access_modifier, class_type, class_name, package_name, extends_package_class, self.project_id, implements, annotations_json, documentation, is_controller, controller_base_url, commit_or_branch)
         return class_id, new_add
@@ -790,7 +792,7 @@ class JavaParse(object):
 
         return only_files
 
-    def _parse_import_file(self, imports, commit_or_branch):
+    def _parse_import_file(self, imports, commit_or_branch, parse_import_first):
         for import_decl in imports:
             import_path = import_decl.path
             is_static = import_decl.static
@@ -811,16 +813,16 @@ class JavaParse(object):
             for import_filepath in java_files:
                 if not os.path.exists(import_filepath):
                     continue
-                self.parse_java_file(import_filepath, commit_or_branch)
+                self.parse_java_file(import_filepath, commit_or_branch, parse_import_first=parse_import_first)
 
-    def _parse_tree_class(self, class_declaration, filepath, tree_imports, package_name, commit_or_branch, lines):
+    def _parse_tree_class(self, class_declaration, filepath, tree_imports, package_name, commit_or_branch, lines, parse_import_first):
         class_name = class_declaration.name
         package_class = package_name + '.' + class_name
         import_list = self._parse_imports(tree_imports)
         import_map = {import_obj['import_path'].split('.')[-1]: import_obj['import_path'] for import_obj in import_list}
 
         # 处理 class 信息
-        class_id, new_add = self._parse_class(class_declaration, filepath, package_name, import_list, commit_or_branch)
+        class_id, new_add = self._parse_class(class_declaration, filepath, package_name, import_list, commit_or_branch, parse_import_first)
         # 已经处理过了，返回
         # if not new_add:
         #     return
@@ -832,7 +834,7 @@ class JavaParse(object):
         # 处理 inner class
         inner_class_declarations = [inner_class for inner_class in class_declaration.body if type(inner_class) == javalang.tree.ClassDeclaration]
         for inner_class_obj in inner_class_declarations:
-            self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines)
+            self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines, parse_import_first)
 
         # 处理 field 信息
         field_list = self._parse_fields(class_declaration.fields, package_name, class_name, class_id, import_map)
@@ -846,7 +848,7 @@ class JavaParse(object):
         # 处理 methods 信息
         self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
 
-    def parse_java_file(self, filepath: str, commit_or_branch: str):
+    def parse_java_file(self, filepath: str, commit_or_branch: str, parse_import_first=True):
         if filepath + '_' + commit_or_branch in self.parsed_filepath or not filepath.endswith('.java'):
             return
         self.parsed_filepath.append(filepath + '_' + commit_or_branch)
@@ -874,13 +876,14 @@ class JavaParse(object):
             base_filepath = filepath.replace(package_path, '')
             self.sibling_dirs = self._get_sibling_dirs(base_filepath.replace('src/main/java/', ''))
         # 处理 import 信息
-        self._parse_import_file(tree.imports, commit_or_branch)
+        if parse_import_first:
+            self._parse_import_file(tree.imports, commit_or_branch, parse_import_first)
         logging.info(f'Parsing java file: {filepath}')
-        self._parse_tree_class(class_declaration, filepath, tree.imports, package_name, commit_or_branch, lines)
+        self._parse_tree_class(class_declaration, filepath, tree.imports, package_name, commit_or_branch, lines, parse_import_first)
 
     def parse_java_file_list(self, filepath_list: list, commit_or_branch: str):
         for file_path in filepath_list:
-            self.parse_java_file(file_path, commit_or_branch)
+            self.parse_java_file(file_path, commit_or_branch, parse_import_first=True)
 
 
 if __name__ == '__main__':

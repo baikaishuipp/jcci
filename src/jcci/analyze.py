@@ -123,7 +123,7 @@ class JCCI(object):
             if not matched_file_path_list:
                 continue
             matched_file_path = matched_file_path_list[0]
-            java_parse.parse_java_file(matched_file_path, old_commit_or_branch)
+            java_parse.parse_java_file(matched_file_path, old_commit_or_branch, parse_import_first=False)
         return xml_parse_result_new, xml_parse_result_old
 
     # Step 3
@@ -145,7 +145,7 @@ class JCCI(object):
             if not matched_file_path_list:
                 continue
             matched_file_path = matched_file_path_list[0]
-            java_parse.parse_java_file(matched_file_path, old_branch)
+            java_parse.parse_java_file(matched_file_path, old_branch, parse_import_first=False)
         return xml_parse_result_new, xml_parse_result_old
 
     # Step 3.1 get all java files
