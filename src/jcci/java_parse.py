@@ -169,8 +169,10 @@ class JavaParse(object):
             self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
         else:
             if node_arguments:
-                node_method = f'{qualifier}({",".join(node_arguments)})'
-                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
+                qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, qualifier, node_arguments)
+                if not method_db:
+                    return qualifier_type
+                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
             self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
         if self._is_valid_prefix(qualifier_type):
             self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
