@@ -162,10 +162,15 @@ class JavaParse(object):
 
     def _parse_method_body_class_creator(self, node, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id):
         qualifier = node.type.name
+        node_line = node.position.line if node.position else None
         qualifier_type = self._get_var_type(qualifier, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-        if node.selectors is None:
+        node_arguments = self._deal_var_type(node.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+        if node.selectors is None or not node_arguments:
             self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
         else:
+            if node_arguments:
+                node_method = f'{qualifier}({",".join(node_arguments)})'
+                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
             self._parse_node_selectors(node.selectors, qualifier_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
         if self._is_valid_prefix(qualifier_type):
             self._add_entity_used_to_method_invocation(method_invocation, qualifier_type, BODY)
@@ -253,6 +258,55 @@ class JavaParse(object):
                 if self._is_valid_prefix(selector_qualifier_type):
                     self._add_field_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_member, [None])
         return selector_qualifier_type
+
+    def _parse_constructors(self, constructors, lines, class_id, import_map, field_map, package_name, filepath):
+        all_method = []
+        for constructor in constructors:
+            method_invocation = {}
+            cs_name = constructor.name
+            annotations = json.dumps(constructor.annotations, default=lambda obj: obj.__dict__)  # annotations
+
+            access_modifier = [m for m in list(constructor.modifiers) if m.startswith('p')][0] if list([m for m in list(constructor.modifiers) if m.startswith('p')]) else 'public'
+            parameters = []
+            parameters_map = {}
+            for parameter in constructor.parameters:
+                parameter_obj = {
+                    'parameter_type': self._deal_declarator_type(parameter.type, PARAMETERS, parameters_map, {}, field_map, import_map, method_invocation, package_name, filepath, [], {}, class_id),
+                    'parameter_name': parameter.name,
+                    'parameter_varargs': parameter.varargs
+                }
+                parameters.append(parameter_obj)
+            parameters_map = {parameter['parameter_name']: parameter['parameter_type'] for parameter in parameters}
+            return_type = package_name + '.' + cs_name
+            start_line = constructor.position.line
+            if constructor.annotations:
+                start_line = constructor.annotations[0].position.line
+            end_line = self._get_method_end_line(constructor)
+            cs_body = lines[start_line - 1: end_line + 1]
+            for body in constructor.body:
+                for path, node in body.filter(javalang.tree.This):
+                    self._parse_node_selectors(node.selectors, None, {}, {}, field_map, import_map, method_invocation, package_name, filepath, [], {}, class_id)
+
+            method_db = {
+                'class_id': class_id,
+                'project_id': self.project_id,
+                'annotations': annotations,
+                'access_modifier': access_modifier,
+                'return_type': return_type,
+                'method_name': cs_name,
+                'parameters': json.dumps(parameters),
+                'body': json.dumps(cs_body),
+                'method_invocation_map': json.dumps(method_invocation),
+                'is_static': False,
+                'is_abstract': False,
+                'is_api': False,
+                'api_path': None,
+                'start_line': start_line,
+                'end_line': end_line,
+                'documentation': constructor.documentation
+            }
+            all_method.append(method_db)
+        self.sqlite.insert_data('methods', all_method)
 
     def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
         # 处理 methods
@@ -847,6 +901,8 @@ class JavaParse(object):
 
         # 处理 methods 信息
         self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
+
+        self._parse_constructors(class_declaration.constructors, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
 
     def parse_java_file(self, filepath: str, commit_or_branch: str, parse_import_first=True):
         if filepath + '_' + commit_or_branch in self.parsed_filepath or not filepath.endswith('.java'):
