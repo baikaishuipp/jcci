@@ -234,24 +234,24 @@ class JavaParse(object):
         for selector in selectors:
             if type(selector) == javalang.tree.ArraySelector:
                 continue
-            # selector_member = selector.member
+            selector_member = selector.member
             if type(selector) == javalang.tree.MethodInvocation:
-                selector_qualifier_type = self._parse_method_body_method_invocation(selector, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
-                # selector_arguments = self._deal_var_type(selector.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
-                # selector_line = selector.position.line
-                # selector_method = f'{selector_member}({",".join(selector_arguments)})'
-                # if self._is_valid_prefix(selector_qualifier_type):
-                #     self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
-                # selector_package_class, method_params, method_db = self._find_method_in_package_class(selector_qualifier_type, selector_member, selector_arguments)
-                # if not method_db:
-                #     continue
-                # method_db_type = method_db.get("return_type", method_db.get("field_type"))
-                # selector_qualifier_type = method_db_type
+                self._parse_method_body_method_invocation(selector, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                selector_arguments = self._deal_var_type(selector.arguments, BODY, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                selector_line = selector.position.line
+                selector_method = f'{selector_member}({",".join(selector_arguments)})'
+                if self._is_valid_prefix(selector_qualifier_type):
+                    self._add_method_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_method, [selector_line])
+                selector_package_class, method_params, method_db = self._find_method_in_package_class(selector_qualifier_type, selector_member, selector_arguments)
+                if not method_db:
+                    continue
+                method_db_type = method_db.get("return_type", method_db.get("field_type"))
+                selector_qualifier_type = method_db_type
             elif type(selector) == javalang.tree.MemberReference:
-                selector_qualifier_type = self._deal_member_reference(selector, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                # selector_qualifier_type = self._get_var_type(selector_member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
-                # if self._is_valid_prefix(selector_qualifier_type):
-                #     self._add_field_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_member, [None])
+                self._deal_member_reference(selector, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                selector_qualifier_type = self._get_var_type(selector_member, parameters_map, variable_map, field_map, import_map, method_invocation, BODY, package_name, filepath)
+                if self._is_valid_prefix(selector_qualifier_type):
+                    self._add_field_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_member, [None])
         return selector_qualifier_type
 
     def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
