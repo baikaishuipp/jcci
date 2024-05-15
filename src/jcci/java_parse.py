@@ -199,7 +199,7 @@ class JavaParse(object):
             if not method_db:
                 return qualifier_type
             if method_params != node_method:
-            self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
+                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
             method_db_type = method_db.get("return_type", method_db.get("field_type"))
             method_db_type = self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             return_type = method_db_type
@@ -683,11 +683,12 @@ class JavaParse(object):
         for argument in arguments:
             argument_type = type(argument)
             if argument_type == javalang.tree.MethodInvocation:
-                return self._parse_method_body_method_invocation(argument, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                var_declarator_type_argument = self._parse_method_body_method_invocation(argument, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             elif argument_type == javalang.tree.This:
-                return self._parse_node_selectors(argument.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
-            var_declarator_type_argument = self._deal_type(argument)
-            var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
+                var_declarator_type_argument = self._parse_node_selectors(argument.selectors, None, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+            else:
+                var_declarator_type_argument = self._deal_type(argument)
+                var_declarator_type_argument = self._get_var_type(var_declarator_type_argument, parameters_map, variable_map, field_map, import_map, method_invocation, section, package_name, filepath)
             if self._is_valid_prefix(var_declarator_type_argument):
                 self._add_entity_used_to_method_invocation(method_invocation, var_declarator_type_argument, section)
             var_declarator_type_arguments.append(var_declarator_type_argument)
