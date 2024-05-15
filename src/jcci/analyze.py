@@ -123,7 +123,7 @@ class JCCI(object):
             if not matched_file_path_list:
                 continue
             matched_file_path = matched_file_path_list[0]
-            java_parse.parse_java_file(matched_file_path, old_commit_or_branch)
+            java_parse.parse_java_file(matched_file_path, old_commit_or_branch, parse_import_first=False)
         return xml_parse_result_new, xml_parse_result_old
 
     # Step 3
@@ -145,7 +145,7 @@ class JCCI(object):
             if not matched_file_path_list:
                 continue
             matched_file_path = matched_file_path_list[0]
-            java_parse.parse_java_file(matched_file_path, old_branch)
+            java_parse.parse_java_file(matched_file_path, old_branch, parse_import_first=False)
         return xml_parse_result_new, xml_parse_result_old
 
     # Step 3.1 get all java files
@@ -163,7 +163,8 @@ class JCCI(object):
                         break
                 if ignore:
                     continue
-                file_lists.append(filepath.replace('\\', '/'))
+                filepath = filepath.replace('\\', '/')
+                file_lists.append(filepath)
         return file_lists
 
     # Step 3.3
@@ -235,15 +236,13 @@ class JCCI(object):
     def _java_diff_analyze(self, patch_filepath: str, diff_parse_obj: dict):
         # new branch or commit
         class_db = self.sqlite.select_data(f'''SELECT * FROM class WHERE project_id = {self.project_id} and commit_or_branch = "{self.commit_or_branch_new}" and filepath LIKE "%{patch_filepath}"''')
-        if class_db:
-            class_db_obj = class_db[0]
+        for class_db_obj in class_db:
             self._java_field_method_diff_analyze(class_db_obj, diff_parse_obj['line_num_added'], diff_parse_obj['line_content_added'], self.commit_or_branch_new)
         # old branch or commit
         if not self.commit_or_branch_old:
             return
         class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE project_id = {self.project_id} and commit_or_branch = "{self.commit_or_branch_old}" and filepath LIKE "%{patch_filepath}"')
-        if class_db:
-            class_db_obj = class_db[0]
+        for class_db_obj in class_db:
             self._java_field_method_diff_analyze(class_db_obj, diff_parse_obj['line_num_removed'], diff_parse_obj['line_content_removed'], self.commit_or_branch_old)
 
     # Step 4.2.1
@@ -256,8 +255,8 @@ class JCCI(object):
         data_in_annotation = [annotation for annotation in json.loads(class_db['annotations']) if annotation['name'] in ['Data', 'Getter', 'Setter', 'Builder', 'NoArgsConstructor', 'AllArgsConstructor']]
         for line_num in line_num_list:
             diff_content = line_content_list[line_num_list.index(line_num)]
-            fields_list = self.sqlite.select_data(f'SELECT * FROM field WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
-            methods_list = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
+            fields_list = self.sqlite.select_data(f'SELECT field_id, class_id, field_type, field_name, documentation, is_static FROM field WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
+            methods_list = self.sqlite.select_data(f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
             if fields_list:
                 is_not_static_fields = [field for field in fields_list if field.get('is_static') == 'False']
                 if is_not_static_fields and data_in_annotation:
@@ -269,7 +268,7 @@ class JCCI(object):
                         field_name_capitalize = field_name[0].upper() + field_name[1:]
                         field_method_name += ['get' + field_name_capitalize, 'set' + field_name_capitalize, 'is' + field_name_capitalize]
                     field_method_name_str = '"' + '","'.join(field_method_name) + '"'
-                    field_method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {class_db["class_id"]} AND method_name in ({field_method_name_str})')
+                    field_method_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {class_db["class_id"]} AND method_name in ({field_method_name_str})')
                     if field_method_db:
                         self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', None, None, commit_or_branch, class_db)
             for field_db in fields_list:
@@ -284,7 +283,7 @@ class JCCI(object):
                         'api_path': method_db['api_path']
                     }
                 method_name_param = f'{method_db["method_name"]}({",".join([param["parameter_type"] for param in json.loads(method_db["parameters"])])})'
-                node_id = self.view.create_node_category(class_name, method_name_param, constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_CHANGED, diff_content, class_filepath, method_db['documentation'], method_db['body'], node_extend_dict)
+                node_id = self.view.create_node_category(class_name, method_name_param, constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_CHANGED, diff_content, class_filepath, method_db.get('documentation'), method_db.get('body'), node_extend_dict)
                 method_db['method_node_id'] = node_id
                 self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', None, method_name_param, commit_or_branch, method_db)
 
@@ -295,7 +294,8 @@ class JCCI(object):
         commit_or_branch = need_analyze_obj['commit_or_branch']
         package_name = '.'.join(package_class.split('.')[0: -1])
         class_name = package_class.split('.')[-1]
-        class_db_list = self.sqlite.select_data(f'SELECT * FROM class WHERE project_id = {self.project_id} and class_name="{class_name}" and package_name="{package_name}"')
+        class_db_list = self.sqlite.select_data(f'SELECT class_id, filepath, commit_or_branch, is_controller, annotations, extends_class, implements '
+                                                f' FROM class WHERE project_id = {self.project_id} and class_name="{class_name}" and package_name="{package_name}"')
         class_entity = self._get_right_class_entity(class_db_list, commit_or_branch)
         if not class_entity:
             return
@@ -308,7 +308,8 @@ class JCCI(object):
         if file_type == 'xml':
             method_name = need_analyze_obj['method_param']
             mapper_method_node_id = need_analyze_obj['method_node_id']
-            impacted_methods = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id={class_id} and method_name="{method_name}"')
+            impacted_methods = self.sqlite.select_data(f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body '
+                                                       f'FROM methods WHERE class_id={class_id} and method_name="{method_name}"')
             if not impacted_methods:
                 return
             for impacted_method in impacted_methods:
@@ -321,8 +322,8 @@ class JCCI(object):
                 method_name_param = f'{impacted_method["method_name"]}({",".join([param["parameter_type"] for param in json.loads(impacted_method["parameters"])])})'
                 impacted_method_node_id = self.view.create_node_category(class_name, method_name_param,
                                                                          constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_IMPACTED,
-                                                                         impacted_method['body'], class_filepath, impacted_method['documentation'],
-                                                                         impacted_method['body'], node_extend_dict)
+                                                                         impacted_method.get('body'), class_filepath, impacted_method.get('documentation'),
+                                                                         impacted_method.get('body'), node_extend_dict)
                 self.view.create_node_link(mapper_method_node_id, impacted_method_node_id)
                 extend_dict = {'method_node_id': impacted_method_node_id}
                 extend_dict.update(impacted_method)
@@ -337,7 +338,7 @@ class JCCI(object):
                 source_node_id = class_node_id
             elif need_analyze_obj.get('field_name'):
                 annotations: list = json.loads(class_entity['annotations'])
-                entity_impacted_methods = self._get_field_invocation_in_methods_table(package_class, need_analyze_obj, annotations, commit_or_branch)
+                entity_impacted_methods = self._get_field_invocation_in_methods_table(package_class, need_analyze_obj, annotations, commit_or_branch, class_id)
                 source_node_id = need_analyze_obj.get('field_node_id')
             elif need_analyze_obj.get('method_param'):
                 method_param = need_analyze_obj.get('method_param')
@@ -345,7 +346,7 @@ class JCCI(object):
                 method_node_id = need_analyze_obj.get('method_node_id')
                 source_node_id = method_node_id
                 entity_impacted_methods = self._get_method_invocation_in_methods_table(package_class, method_param, commit_or_branch)
-                method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE method_id = {need_analyze_obj.get("method_id")}')[0]
+                method_db = self.sqlite.select_data(f'SELECT annotations FROM methods WHERE method_id = {need_analyze_obj.get("method_id")}')[0]
                 is_override_method = 'Override' in method_db['annotations']
                 if is_override_method:
 
@@ -366,7 +367,7 @@ class JCCI(object):
                             implements_methods = self._get_method_invocation_in_methods_table(implements_package_class, method_param, commit_or_branch)
                             entity_impacted_methods += implements_methods
                 else:
-                    class_method_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {class_id} and method_name = "{method_name}"')
+                    class_method_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {class_id} and method_name = "{method_name}"')
                     if not class_method_db:
                         extends_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'False', commit_or_branch)
                         if extends_package_class:
@@ -380,13 +381,13 @@ class JCCI(object):
         method_name: str = method_param.split('(')[0]
         extends_package = '.'.join(extends_package_class.split('.')[0: -1])
         extends_class_name = extends_package_class.split('.')[-1]
-        extends_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id} and commit_or_branch = "{commit_or_branch}"')
+        extends_class_db = self.sqlite.select_data(f'SELECT class_id, extends_class FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id} and commit_or_branch = "{commit_or_branch}"')
         if not extends_class_db:
-            extends_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id}')
+            extends_class_db = self.sqlite.select_data(f'SELECT class_id, extends_class FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id}')
             if not extends_class_db:
                 return None
         extends_class_id = extends_class_db[0]['class_id']
-        methods_db = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
+        methods_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
         if methods_db:
             return extends_package_class
         else:
@@ -397,7 +398,7 @@ class JCCI(object):
 
     def _get_extends_package_class(self, package_class):
         extends_package_class_list = []
-        extends_package_class_db = self.sqlite.select_data(f'SELECT * FROM class WHERE project_id = {self.project_id} AND extends_class="{package_class}"')
+        extends_package_class_db = self.sqlite.select_data(f'SELECT package_name, class_name FROM class WHERE project_id = {self.project_id} AND extends_class="{package_class}"')
         if extends_package_class_db:
             extends_package_class_list = [f'{class_item["package_name"]}.{class_item["class_name"]}' for class_item in extends_package_class_db]
             for extends_package_class in extends_package_class_list:
@@ -413,16 +414,16 @@ class JCCI(object):
 
     # Step 5.2
     def _get_entity_invocation_in_methods_table(self, package_class: str):
-        return self.sqlite.select_data(f'''SELECT * FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".entity') IS NOT NULL''')
+        return self.sqlite.select_data(f'''SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".entity') IS NOT NULL''')
 
     # Step 5.3
-    def _get_field_invocation_in_methods_table(self, package_class, field_obj, annotations, commit_or_branch):
+    def _get_field_invocation_in_methods_table(self, package_class, field_obj, annotations, commit_or_branch, class_id):
         is_static = field_obj['is_static']
         field_name = field_obj['field_name']
+        field_name_capitalize = field_name[0].upper() + field_name[1:]
         if not is_static:
             # todo static maybe has bug
             field_methods_set = set()
-            field_name_capitalize = field_name[0].upper() + field_name[1:]
             for annotation in annotations:
                 annotation_name = annotation.get('name')
                 if annotation_name == 'Data':
@@ -440,14 +441,16 @@ class JCCI(object):
             for field_method in field_methods_set:
                 sql_part = f'''json_extract(method_invocation_map, '$."{package_class}".methods.keys(@.startsWith("{field_method}"))') IS NOT NULL'''
                 json_extract_sql_list.append(sql_part)
-            sql = f'SELECT * FROM methods WHERE project_id = {self.project_id} AND (' + ' OR '.join(json_extract_sql_list) + ')'
+            sql = f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND (' + ' OR '.join(json_extract_sql_list) + ')'
         else:
-            sql = f'''SELECT * FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".fields.{field_name}') IS NOT NULL'''
+            sql = f'''SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".fields.{field_name}') IS NOT NULL'''
         methods = self.sqlite.select_data(sql)
         if not methods:
-            return []
+            field_method_name_list = ['get' + field_name_capitalize, 'set' + field_name_capitalize, 'is' + field_name_capitalize]
+            field_method_name_str = '"' + '","'.join(field_method_name_list) + '"'
+            methods = self.sqlite.select_data(f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE class_id = {class_id} AND method_name in ({field_method_name_str})')
         class_ids = [str(method['class_id']) for method in methods]
-        class_sql = f'SELECT * FROM class WHERE class_id in ({", ".join(class_ids)}) and commit_or_branch ="{commit_or_branch}"'
+        class_sql = f'SELECT class_id FROM class WHERE class_id in ({", ".join(class_ids)}) and commit_or_branch ="{commit_or_branch}"'
         class_db = self.sqlite.select_data(class_sql)
         class_db_id = [class_item['class_id'] for class_item in class_db]
         return [method for method in methods if method['class_id'] in class_db_id]
@@ -461,14 +464,14 @@ class JCCI(object):
             json_extract_sql_list.append(sql_part)
         if len(json_extract_sql_list) > 1000:
             json_extract_sql_list = json_extract_sql_list[0: 995]
-        sql = f'SELECT * FROM methods WHERE project_id = {self.project_id} AND (' + ' OR '.join(json_extract_sql_list) + ')'
+        sql = f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND (' + ' OR '.join(json_extract_sql_list) + ')'
         logging.info(f'{package_class} {method_param} invocation sql: {sql}')
         methods = self.sqlite.select_data(sql)
         class_ids = [str(method['class_id']) for method in methods]
-        class_sql = f'SELECT * FROM class WHERE class_id in ({", ".join(class_ids)}) and commit_or_branch ="{commit_or_branch}"'
+        class_sql = f'SELECT class_id FROM class WHERE class_id in ({", ".join(class_ids)}) and commit_or_branch ="{commit_or_branch}"'
         class_db = self.sqlite.select_data(class_sql)
         if not class_db:
-            class_sql = f'SELECT * FROM class WHERE class_id in ({", ".join(class_ids)})'
+            class_sql = f'SELECT class_id FROM class WHERE class_id in ({", ".join(class_ids)})'
             class_db = self.sqlite.select_data(class_sql)
         class_db_id = [class_item['class_id'] for class_item in class_db]
         return [method for method in methods if method['class_id'] in class_db_id]
@@ -512,31 +515,42 @@ class JCCI(object):
                 self._replace_params_with_unknown(item['list'], results, item['index'], need_replace_list)
         return list(results)
 
+    def _replace_param_switch(self, param: str):
+        if 'int' in param.lower():
+            if param == 'int':
+                param = 'Integer'
+            else:
+                param = 'int'
+        else:
+            if param[0].isupper():
+                param = param[0].lower() + param[1:]
+            else:
+                param = param[0].upper() + param[1:]
+        return param
+
     def _replace_params_with_unknown(self, lst: list, results: set, idx: int, need_replace_list: list):
         # data = [item.split('<')[0].replace('<', '').replace('>', '') for item in data]
         for i in range(idx, len(lst)):
             new_lst = lst[:]
             results.add(tuple(new_lst))
+            new_lst2 = new_lst[:]
             if new_lst[i].lower() not in constant.JAVA_BASIC_TYPE:
-                new_lst2 = new_lst[:]
                 if new_lst[i].startswith('List'):
                     new_lst2[i] = 'ArrayList'
                 elif new_lst[i].startswith('Map'):
                     new_lst2[i] = 'HashMap'
                 elif new_lst[i].startswith('Set'):
                     new_lst2[i] = 'HashSet'
-                if tuple(new_lst2) not in results:
-                    results.add(tuple(new_lst2))
-                    if {'list': new_lst2, 'index': idx} not in need_replace_list:
-                        need_replace_list.append({'list': new_lst2, 'index': idx})
-            # else:
-            #     if new_lst[i][0].isupper() and new_lst[i] != 'String':
-            #         new_lst2 = new_lst[:]
-            #         new_lst2[i] = new_lst[i][0].lower() + new_lst[i][1:]
-            #         if tuple(new_lst2) not in results:
-            #             results.add(tuple(new_lst2))
-            #             if {'list': new_lst2, 'index': idx} not in need_replace_list:
-            #                 need_replace_list.append({'list': new_lst2, 'index': idx})
+            else:
+                if new_lst[i].lower() in constant.JAVA_BASIC_TYPE_SWITCH:
+                    new_lst2 = new_lst[:]
+                    param = self._replace_param_switch(new_lst[i])
+                    new_lst2[i] = param
+            if tuple(new_lst2) not in results:
+                results.add(tuple(new_lst2))
+                if {'list': new_lst2, 'index': idx} not in need_replace_list:
+                    need_replace_list.append({'list': new_lst2, 'index': idx})
+
             for el in ['null', 'unknown']:
                 new_lst_tmp = new_lst[:]
                 new_lst_tmp[i] = el
@@ -562,14 +576,14 @@ class JCCI(object):
                     'api_path': impacted_method['api_path']
                 }
             class_id = impacted_method['class_id']
-            class_entity = self.sqlite.select_data(f'SELECT * FROM class WHERE class_id={class_id}')[0]
+            class_entity = self.sqlite.select_data(f'SELECT package_name, class_name, commit_or_branch, filepath FROM class WHERE class_id={class_id}')[0]
             class_name = class_entity['class_name']
             package_name = class_entity['package_name']
             package_class = f'{package_name}.{class_name}'
             commit_or_branch = class_entity['commit_or_branch']
             class_filepath = class_entity['filepath']
             method_name_param = f'{impacted_method["method_name"]}({",".join([param["parameter_type"] for param in json.loads(impacted_method["parameters"])])})'
-            impacted_method_node_id = self.view.create_node_category(class_name, method_name_param, constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_IMPACTED, impacted_method['body'], class_filepath, impacted_method['documentation'], impacted_method['body'], node_extend_dict)
+            impacted_method_node_id = self.view.create_node_category(class_name, method_name_param, constant.NODE_TYPE_METHOD, constant.DIFF_TYPE_IMPACTED, impacted_method.get('body'), class_filepath, impacted_method.get('documentation'), impacted_method.get('body'), node_extend_dict)
             self.view.create_node_link(source_node_id, impacted_method_node_id)
             extend_dict = {'method_node_id': impacted_method_node_id, 'class_filepath': class_filepath}
             extend_dict.update(impacted_method)
@@ -700,8 +714,6 @@ class JCCI(object):
         os.system(f'cd {self.file_path} && git checkout {branch} && git pull')
         time.sleep(1)
 
-        self.xml_parse_results_new, self.xml_parse_results_old = self._parse_project(self.file_path, self.commit_or_branch_new, None)
-
         if not method_nums:
             method_nums_all = []
             # todo
@@ -722,5 +734,7 @@ class JCCI(object):
             'line_num_removed': [],
             'line_content_removed': []
         }
+
+        self.xml_parse_results_new, self.xml_parse_results_old = self._parse_project(self.file_path, self.commit_or_branch_new, None)
 
         self._start_analysis_diff_and_impact()
