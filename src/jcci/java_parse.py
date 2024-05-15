@@ -3,6 +3,7 @@ import sys
 import logging
 import json
 import javalang
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from .database import SqliteHelper
 from .constant import ENTITY, RETURN_TYPE, PARAMETERS, BODY, METHODS, FIELDS, \
     PARAMETER_TYPE_METHOD_INVOCATION_UNKNOWN, JAVA_BASIC_TYPE, MAPPING_LIST, JAVA_UTIL_TYPE
@@ -979,8 +980,10 @@ class JavaParse(object):
         self._parse_tree_class(class_declaration, filepath, tree.imports, package_name, commit_or_branch, lines, parse_import_first)
 
     def parse_java_file_list(self, filepath_list: list, commit_or_branch: str):
-        for file_path in filepath_list:
-            self.parse_java_file(file_path, commit_or_branch, parse_import_first=True)
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [executor.submit(self.parse_java_file, file, commit_or_branch) for file in filepath_list]
+            for _ in as_completed(futures):
+                continue
 
 
 if __name__ == '__main__':
