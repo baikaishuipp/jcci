@@ -199,7 +199,7 @@ class JavaParse(object):
             if not method_db:
                 return qualifier_type
             if method_params != node_method:
-                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
+            self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
             method_db_type = method_db.get("return_type", method_db.get("field_type"))
             method_db_type = self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             return_type = method_db_type
@@ -260,6 +260,37 @@ class JavaParse(object):
                 if self._is_valid_prefix(selector_qualifier_type):
                     self._add_field_used_to_method_invocation(method_invocation, selector_qualifier_type, selector_member, [None])
         return selector_qualifier_type
+
+    def _parse_enum(self, enum_body, lines, class_id, import_map, field_map, package_name, filepath):
+        constants = enum_body.constants
+        field_list = []
+        init_line = 0
+        for constant in constants:
+            constant_type = 'ENUM'
+            constant_name = constant.name
+            arguments = constant.arguments
+            start_text = constant_name if not arguments else constant_name + '('
+            start_lines = [lines.index(line) for line in lines if line.strip().startswith(start_text)]
+            if start_lines:
+                start_line = start_lines[0] + 1
+                init_line = start_line
+            else:
+                start_line = init_line
+            end_line = start_line
+            field_obj = {
+                'class_id': class_id,
+                'project_id': self.project_id,
+                'annotations': None,
+                'access_modifier': 'public',
+                'field_type': constant_type,
+                'field_name': constant_name,
+                'is_static': True,
+                'documentation': None,
+                'start_line': start_line,
+                'end_line': end_line
+            }
+            field_list.append(field_obj)
+        self.sqlite.insert_data('field', field_list)
 
     def _parse_constructors(self, constructors, lines, class_id, import_map, field_map, package_name, filepath):
         all_method = []
@@ -791,7 +822,10 @@ class JavaParse(object):
                                                        f'and class_id in (select class_id from class where project_id={self.project_id} and class_name="{var_class}" and package_name="{var_type_package}")')
                 if var_field_db:
                     self._add_field_used_to_method_invocation(method_invocation, var_type, var_field, [None])
-                    return var_field_db[0]['field_type']
+                    field_type = var_field_db[0]['field_type']
+                    if field_type == 'ENUM':
+                        return var_type
+                    return field_type
             var_package_end = '.'.join(var_split[0: -1])
             sql = "select package_name, class_name from class where project_id = {} and class_name=\"{}\" and package_name like \"%{}\"".format(self.project_id, var_field, var_package_end)
             var_class_db = self.sqlite.select_data(sql)
@@ -878,6 +912,7 @@ class JavaParse(object):
         import_map = {import_obj['import_path'].split('.')[-1]: import_obj['import_path'] for import_obj in import_list}
 
         # 处理 class 信息
+        class_type = type(class_declaration).__name__.replace('Declaration', '')
         class_id, new_add = self._parse_class(class_declaration, filepath, package_name, import_list, commit_or_branch, parse_import_first)
         # 已经处理过了，返回
         # if not new_add:
@@ -900,6 +935,9 @@ class JavaParse(object):
         # 将extend class的field导进来
         extends_class_fields_map = self._get_extends_class_fields_map(class_id)
         extends_class_fields_map.update(field_map)
+
+        if class_type == 'Enum':
+            self._parse_enum(class_declaration.body, lines, class_id, import_map, field_map, package_name, filepath)
 
         # 处理 methods 信息
         self._parse_method(class_declaration.methods, lines, class_id, import_map, extends_class_fields_map, package_name, filepath)
