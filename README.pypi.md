@@ -2,10 +2,9 @@
 Java code commit impact analysis, is a pure python library that analyzes the impact of two git submissions of Java projects on the project and generates tree chart data.
 
 Github: [jcci](https://github.com/baikaishuipp/jcci)
-#### Installation
-```
-pip install jcci
-```
+
+#### Achieve Effect
+![效果图](./images/cii-result-tree.png)
 
 #### Instructions
 Start a new python project, add a new python file, code example:

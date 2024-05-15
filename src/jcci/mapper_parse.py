@@ -29,7 +29,7 @@ class MapperStatement(MapperElement):
         self.include_sql = include_sql
 
 def extract_value(string, tag):
-    pattern = tag + r'\s*=\s*"(\w+)"'
+    pattern = tag + r'\s*=\s*[\'"](\w+)[\'"]'
     match = re.search(pattern, string)
     if match:
         value = match.group(1)
@@ -39,7 +39,7 @@ def extract_value(string, tag):
 
 
 def check_string(tag, id_str, string):
-    pattern = r'^' + tag + '.*?id\s*=\s*"' + id_str + '"'
+    pattern = r'^' + tag + '.*?id\s*=\s*[\'"]' + id_str + '[\'"]'
     match = re.search(pattern, string)
     return bool(match)
 
@@ -106,7 +106,7 @@ def parse(filepath):
         for i, line in enumerate(xml_content.splitlines(), start=1):
             if check_string('<' + statement_element.tag, statement_id, line.strip()):
                 start_line = i
-            if f'resultMap="' in line and start_line != 0:
+            if f'resultMap' in line and start_line != 0:
                 result_map = extract_value(line, 'resultMap')
             if line.strip().startswith('<include') and start_line != 0:
                 include_sql = extract_value(line, 'refid')
@@ -117,4 +117,3 @@ def parse(filepath):
         statement_info.append(MapperStatement(statement_id, 'statement', start_line, end_line, content, statement_element.tag, result_map, include_sql))
 
     return Mapper(namespace, result_map_info, sql_info, statement_info)
-

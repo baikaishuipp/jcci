@@ -10,6 +10,7 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 class SqliteHelper(object):
     def __init__(self, db_path):
         self.db_path = db_path
+        self.sql_result_map = {}
 
     def connect(self):
         try:
@@ -70,6 +71,8 @@ class SqliteHelper(object):
 
     def select_data(self, sql):
         try:
+            if sql in self.sql_result_map.keys():
+                return self.sql_result_map.get(sql)
             conn = self.connect()
             c = conn.cursor()
             cursor = c.execute(sql)
@@ -78,6 +81,7 @@ class SqliteHelper(object):
             field = [column_name[0] for column_name in columns]
             zip_data = [dict(zip(field, item)) for item in res]
             conn.close()
+            self.sql_result_map[sql] = zip_data
             return zip_data
         except Exception as e:
             logging.error(f'select_data fail')
