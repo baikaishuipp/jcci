@@ -388,7 +388,7 @@ class JCCI(object):
             if not extends_class_db:
                 return None, None
         extends_class_id = extends_class_db[0]['class_id']
-        methods_db_list = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
+        methods_db_list = self.sqlite.select_data(f'SELECT * FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
         filter_methods = [method for method in methods_db_list if len(json.loads(method.get('parameters', '[]'))) == len(method_arguments)]
         if not filter_methods:
             if extends_class_db[0]['extends_class']:
