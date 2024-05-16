@@ -360,6 +360,15 @@ class JavaParse(object):
             is_abstract = 'abstract' in list(method_obj.modifiers)
             parameters = []
             parameters_map = {}
+            type_parameters = method_obj.type_parameters if method_obj.type_parameters else []
+            for type_parameter in type_parameters:
+                type_parameter_name = type_parameter.name
+                type_parameter_extends_name = type_parameter.extends[0].name if type_parameter.extends else None
+                if type_parameter_extends_name:
+                    type_parameter_extends_name_type = self._deal_declarator_type(type_parameter.extends[0], PARAMETERS, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
+                else:
+                    type_parameter_extends_name_type = type_parameter_name
+                parameters_map[type_parameter_name] = type_parameter_extends_name_type
             for parameter in method_obj.parameters:
                 parameter_obj = {
                     'parameter_type': self._deal_declarator_type(parameter.type, PARAMETERS, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id),
@@ -367,7 +376,7 @@ class JavaParse(object):
                     'parameter_varargs': parameter.varargs
                 }
                 parameters.append(parameter_obj)
-            parameters_map = {parameter['parameter_name']: parameter['parameter_type'] for parameter in parameters}
+            parameters_map.update({parameter['parameter_name']: parameter['parameter_type'] for parameter in parameters})
             # 处理返回对象
             return_type = self._deal_declarator_type(method_obj.return_type, RETURN_TYPE, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             if self._is_valid_prefix(return_type):
