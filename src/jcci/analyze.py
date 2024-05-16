@@ -8,7 +8,7 @@ import datetime
 import fnmatch
 from . import config as config
 from .database import SqliteHelper
-from .java_parse import JavaParse
+from .java_parse import JavaParse, calculate_similar_score_method_params
 from . import mapper_parse as mapper_parse
 from . import diff_parse as diff_parse
 from . import graph as graph
@@ -351,9 +351,9 @@ class JCCI(object):
                 if is_override_method:
 
                     if class_entity['extends_class']:
-                        abstract_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
+                        abstract_package_class, method_params = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
                         if abstract_package_class:
-                            extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_param, commit_or_branch)
+                            extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_params, commit_or_branch)
                             for method in extends_methods:
                                 method['class_id'] = class_id
                             entity_impacted_methods += extends_methods
@@ -369,9 +369,9 @@ class JCCI(object):
                 else:
                     class_method_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {class_id} and method_name = "{method_name}"')
                     if not class_method_db:
-                        extends_package_class = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'False', commit_or_branch)
+                        extends_package_class, method_params = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'False', commit_or_branch)
                         if extends_package_class:
-                            extends_methods = self._get_method_invocation_in_methods_table(extends_package_class, method_param, commit_or_branch)
+                            extends_methods = self._get_method_invocation_in_methods_table(extends_package_class, method_params, commit_or_branch)
                             entity_impacted_methods += extends_methods
             if not entity_impacted_methods:
                 return
@@ -379,22 +379,39 @@ class JCCI(object):
 
     def _is_method_param_in_extends_package_class(self, method_param, extends_package_class, is_abstract, commit_or_branch):
         method_name: str = method_param.split('(')[0]
+        method_arguments = method_param.split('(')[1].split(')')[0].split(',')
         extends_package = '.'.join(extends_package_class.split('.')[0: -1])
         extends_class_name = extends_package_class.split('.')[-1]
         extends_class_db = self.sqlite.select_data(f'SELECT class_id, extends_class FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id} and commit_or_branch = "{commit_or_branch}"')
         if not extends_class_db:
             extends_class_db = self.sqlite.select_data(f'SELECT class_id, extends_class FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id}')
             if not extends_class_db:
-                return None
+                return None, None
         extends_class_id = extends_class_db[0]['class_id']
-        methods_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
-        if methods_db:
-            return extends_package_class
-        else:
+        methods_db_list = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {extends_class_id} and method_name = "{method_name}" and is_abstract = "{is_abstract}"')
+        filter_methods = [method for method in methods_db_list if len(json.loads(method.get('parameters', '[]'))) == len(method_arguments)]
+        if not filter_methods:
             if extends_class_db[0]['extends_class']:
                 return self._is_method_param_in_extends_package_class(method_param, extends_class_db[0]['extends_class'], is_abstract, commit_or_branch)
             else:
-                return None
+                return None, None
+        if len(filter_methods) == 1:
+            method_db = filter_methods[0]
+            method_params = f'{method_db.get("method_name", method_name)}({",".join([param["parameter_type"] for param in json.loads(method_db.get("parameters", "[]"))])})'
+            return extends_package_class, method_params
+        else:
+            max_score = -float('inf')
+            max_score_method = None
+            for method_db in filter_methods:
+                method_db_params = [param["parameter_type"] for param in json.loads(method_db.get("parameters", "[]"))]
+                score = calculate_similar_score_method_params(method_arguments, method_db_params)
+                if score > max_score:
+                    max_score = score
+                    max_score_method = method_db
+            if max_score_method is None:
+                max_score_method = filter_methods[0]
+            method_params = f'{max_score_method.get("method_name", method_name)}({",".join([param["parameter_type"] for param in json.loads(max_score_method.get("parameters", "[]"))])})'
+            return extends_package_class, method_params
 
     def _get_extends_package_class(self, package_class):
         extends_package_class_list = []

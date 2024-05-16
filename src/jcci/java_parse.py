@@ -13,6 +13,23 @@ sys.setrecursionlimit(10000)
 logging.basicConfig(format='%(asctime)s %(message)s', level=logging.DEBUG)
 
 
+def calculate_similar_score_method_params(except_method_param_list, method_param_list):
+    score = 0
+    positions = {}
+
+    # 记录list1中每个元素的位置
+    for i, item in enumerate(except_method_param_list):
+        positions[item] = i
+
+    # 遍历list2,计算分数
+    for i, item in enumerate(method_param_list):
+        if item in positions:
+            score += 1
+            score -= abs(i - positions[item])
+
+    return score
+
+
 class JavaParse(object):
     def __init__(self, db_path, project_id):
         self.project_id = project_id
@@ -218,7 +235,7 @@ class JavaParse(object):
                     if method_item.name != member or len(node.arguments) != len(method_item.parameters):
                         continue
                     method_item_param_types = [self._deal_declarator_type(parameter.type, PARAMETERS, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id) for parameter in method_item.parameters]
-                    score = self._calculate_similar_score_method_params(node_arguments, method_item_param_types)
+                    score = calculate_similar_score_method_params(node_arguments, method_item_param_types)
                     if score > max_score:
                         max_score = score
                         same_class_method = method_item
@@ -460,7 +477,7 @@ class JavaParse(object):
                 max_score_method = None
                 for method_db in filter_methods:
                     method_db_params = [param["parameter_type"] for param in json.loads(method_db.get("parameters", "[]"))]
-                    score = self._calculate_similar_score_method_params(method_arguments, method_db_params)
+                    score = calculate_similar_score_method_params(method_arguments, method_db_params)
                     if score > max_score:
                         max_score = score
                         max_score_method = method_db
@@ -468,22 +485,6 @@ class JavaParse(object):
                     max_score_method = filter_methods[0]
                 method_params = f'{max_score_method.get("method_name", method_name)}({",".join([param["parameter_type"] for param in json.loads(max_score_method.get("parameters", "[]"))])})'
                 return package_class, method_params, max_score_method
-
-    def _calculate_similar_score_method_params(self, except_method_param_list, method_param_list):
-        score = 0
-        positions = {}
-
-        # 记录list1中每个元素的位置
-        for i, item in enumerate(except_method_param_list):
-            positions[item] = i
-
-        # 遍历list2,计算分数
-        for i, item in enumerate(method_param_list):
-            if item in positions:
-                score += 1
-                score -= abs(i - positions[item])
-
-        return score
 
     def _get_method_end_line(self, method_obj):
         method_end_line = method_obj.position.line
