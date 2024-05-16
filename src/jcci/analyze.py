@@ -354,8 +354,8 @@ class JCCI(object):
                         abstract_package_class, method_params = self._is_method_param_in_extends_package_class(method_param, class_entity['extends_class'], 'True', commit_or_branch)
                         if abstract_package_class:
                             extends_methods = self._get_method_invocation_in_methods_table(abstract_package_class, method_params, commit_or_branch)
-                            for method in extends_methods:
-                                method['class_id'] = class_id
+                            # for method in extends_methods:
+                            #     method['class_id'] = class_id
                             entity_impacted_methods += extends_methods
 
                     if class_entity['implements']:
@@ -364,8 +364,11 @@ class JCCI(object):
                                                 where c.project_id = {self.project_id} and m.method_name = '{method_name}' and c.class_name in ("{'","'.join(class_implements)}")''')
                         if class_implements_obj:
                             implements_package_class = class_implements_obj[0].get('package_name') + '.' + class_implements_obj[0].get('class_name')
-                            implements_methods = self._get_method_invocation_in_methods_table(implements_package_class, method_param, commit_or_branch)
-                            entity_impacted_methods += implements_methods
+                            implements_package_class, method_params = self._is_method_param_in_extends_package_class(method_param, implements_package_class, 'False', commit_or_branch)
+                            if implements_package_class:
+                                implements_methods = self._get_method_invocation_in_methods_table(implements_package_class, method_params, commit_or_branch)
+                                # implements_methods = self._get_method_invocation_in_methods_table(implements_package_class, method_param, commit_or_branch)
+                                entity_impacted_methods += implements_methods
                 else:
                     class_method_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {class_id} and method_name = "{method_name}"')
                     if not class_method_db:
