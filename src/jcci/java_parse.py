@@ -101,7 +101,7 @@ class JavaParse(object):
             import_list.append(import_obj)
         return import_list
 
-    def _parse_fields(self, fields, package_name, class_name, class_id, import_map):
+    def _parse_fields(self, fields, package_name, class_name, class_id, import_map, filepath):
         field_list = []
         package_class = package_name + "." + class_name
         for field_obj in fields:
@@ -111,37 +111,29 @@ class JavaParse(object):
             field_type: str = field_obj.type.name
             if field_type.lower() in JAVA_BASIC_TYPE:
                 pass
-
-            elif field_type in JAVA_UTIL_TYPE and 'java.util' in import_map.values():
-                pass
+            elif field_type in JAVA_UTIL_TYPE and ('java.util' in import_map.values() or 'java.util.' + field_type in import_map.values()):
+                var_declarator_type_arguments = self._deal_arguments_type(field_obj.type.arguments, FIELDS, {}, {}, {}, import_map, {}, package_name, filepath, [], {}, class_id)
+                if var_declarator_type_arguments:
+                    field_type = field_type + '<' + '#'.join(var_declarator_type_arguments) + '>'
             elif field_type in import_map.keys():
                 field_type = import_map.get(field_type)
-
             else:
                 in_import = False
-
                 for key in import_map.keys():
-
                     if key[0].isupper():
                         continue
-
                     field_type_db = self.sqlite.select_data(f'select class_id from class where project_id={self.project_id} and package_name = "{import_map.get(key)}" and class_name = "{field_type}" limit 1')
-
                     if field_type_db:
                         field_type = f'{import_map.get(key)}.{field_type}'
                         in_import = True
                         break
-
                 if not in_import:
                     field_type_db = self.sqlite.select_data(f'select class_id from class where project_id={self.project_id} and package_name = "{package_class}" and class_name = "{field_type}" limit 1')
-
                     if field_type_db:
                         field_type = f'{package_class}.{field_type}'
-
                     else:
                         field_type = package_name + '.' + field_type
                     import_map[field_obj.type.name] = field_type
-
                 else:
                     import_map[field_obj.type.name] = field_type
             is_static = 'static' in list(field_obj.modifiers)
@@ -213,12 +205,17 @@ class JavaParse(object):
             node_arguments = [n for n in node_arguments if n]
             node_method = f'{member}({",".join(node_arguments)})'
             self._add_method_used_to_method_invocation(method_invocation, qualifier_type, node_method, [node_line])
-            qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, member, node_arguments)
-            if not method_db:
-                return qualifier_type
-            if method_params != node_method:
-                self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
-            method_db_type = method_db.get("return_type", method_db.get("field_type"))
+            if self._is_valid_prefix(qualifier_type):
+                qualifier_package_class, method_params, method_db = self._find_method_in_package_class(qualifier_type, member, node_arguments)
+                if not method_db:
+                    return qualifier_type
+                if method_params != node_method:
+                    self._add_method_used_to_method_invocation(method_invocation, qualifier_type, method_params, [node_line])
+                method_db_type = method_db.get("return_type", method_db.get("field_type"))
+            elif qualifier_type.startswith('Map<') and member == 'get':
+                method_db_type = qualifier_type.split('#')[1].split('>')[0]
+            else:
+                method_db_type = qualifier_type
             method_db_type = self._parse_node_selectors(node.selectors, method_db_type, parameters_map, variable_map, field_map, import_map, method_invocation, package_name, filepath, methods, method_name_entity_map, class_id)
             return_type = method_db_type
         # 在一个类的方法或父类方法
@@ -940,7 +937,7 @@ class JavaParse(object):
             self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines, parse_import_first)
 
         # 处理 field 信息
-        field_list = self._parse_fields(class_declaration.fields, package_name, class_name, class_id, import_map)
+        field_list = self._parse_fields(class_declaration.fields, package_name, class_name, class_id, import_map, filepath)
         field_map = {field_obj['field_name']: {'field_type': field_obj['field_type'], 'package_class': package_class, 'start_line': field_obj['start_line']} for field_obj in field_list}
         import_map = dict((k, v) for k, v in import_map.items() if self._is_valid_prefix(v))
 
