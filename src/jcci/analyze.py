@@ -257,10 +257,12 @@ class JCCI(object):
             diff_content = line_content_list[line_num_list.index(line_num)]
             fields_list = self.sqlite.select_data(f'SELECT field_id, class_id, field_type, field_name, documentation, is_static FROM field WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
             methods_list = self.sqlite.select_data(f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE class_id = {class_db["class_id"]} AND start_line <={line_num} AND end_line >= {line_num} order by start_line asc limit 1')
+            class_node_id = None
             if fields_list:
                 is_not_static_fields = [field for field in fields_list if field.get('is_static') == 'False']
                 if is_not_static_fields and data_in_annotation:
                     self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', None, None, commit_or_branch, class_db)
+                    class_node_id = self.view.create_node_category(class_name, 'entity', constant.NODE_TYPE_CLASS, constant.DIFF_TYPE_CHANGED, '', self.file_path, '', '', {})
                 elif is_not_static_fields and not data_in_annotation:
                     field_method_name = []
                     for field in is_not_static_fields:
@@ -271,10 +273,13 @@ class JCCI(object):
                     field_method_db = self.sqlite.select_data(f'SELECT method_id FROM methods WHERE class_id = {class_db["class_id"]} AND method_name in ({field_method_name_str})')
                     if field_method_db:
                         self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', None, None, commit_or_branch, class_db)
+                        class_node_id = self.view.create_node_category(class_name, 'entity', constant.NODE_TYPE_CLASS, constant.DIFF_TYPE_CHANGED, '', self.file_path, '', '', {})
             for field_db in fields_list:
                 node_id = self.view.create_node_category(class_name, field_db['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_CHANGED, diff_content, class_filepath, field_db['documentation'], '', {})
                 field_db['field_node_id'] = node_id
                 self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', field_db['field_name'], None, commit_or_branch, field_db)
+                if class_node_id:
+                    self.view.create_node_link(class_node_id, node_id)
             for method_db in methods_list:
                 node_extend_dict = {'is_api': False}
                 if is_controller and method_db['is_api']:
@@ -331,10 +336,12 @@ class JCCI(object):
         else:
             # analyze entity use
             entity_impacted_methods = []
+            entity_impacted_fields = []
             source_node_id = None
             if not need_analyze_obj.get('field_name') and not need_analyze_obj.get('method_param'):
                 class_node_id = self.view.create_node_category(class_name, 'entity', constant.NODE_TYPE_CLASS, constant.DIFF_TYPE_IMPACTED, '', self.file_path, '', '', {})
                 entity_impacted_methods = self._get_entity_invocation_in_methods_table(package_class)
+                entity_impacted_fields = self._get_entity_invocation_in_field_table(package_class)
                 source_node_id = class_node_id
             elif need_analyze_obj.get('field_name'):
                 annotations: list = json.loads(class_entity['annotations'])
@@ -379,6 +386,7 @@ class JCCI(object):
             if not entity_impacted_methods:
                 return
             self._handle_impacted_methods(entity_impacted_methods, source_node_id)
+            self._handle_impacted_fields(entity_impacted_fields, source_node_id)
 
     def _is_method_param_in_extends_package_class(self, method_param, extends_package_class, is_abstract, commit_or_branch):
         method_name: str = method_param.split('(')[0]
@@ -435,6 +443,10 @@ class JCCI(object):
     # Step 5.2
     def _get_entity_invocation_in_methods_table(self, package_class: str):
         return self.sqlite.select_data(f'''SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".entity') IS NOT NULL''')
+
+    # Step 5.2
+    def _get_entity_invocation_in_field_table(self, package_class: str):
+        return self.sqlite.select_data(f'''SELECT field_id, class_id, annotations, field_type, field_name, is_static, documentation FROM field WHERE project_id = {self.project_id} AND field_type = "{package_class}"''')
 
     # Step 5.3
     def _get_field_invocation_in_methods_table(self, package_class, field_obj, annotations, commit_or_branch, class_id):
@@ -585,6 +597,21 @@ class JCCI(object):
         params: list = json.loads(method_db['parameters'])
         params_type_list = [param['parameter_type'] for param in params]
         return f'{method_name}({",".join(params_type_list)})'
+
+    def _handle_impacted_fields(self, impacted_fields: list, source_node_id):
+        for impacted_field in impacted_fields:
+            class_id = impacted_field['class_id']
+            class_entity = self.sqlite.select_data(f'SELECT package_name, class_name, commit_or_branch, filepath FROM class WHERE class_id={class_id}')[0]
+            class_name = class_entity['class_name']
+            package_name = class_entity['package_name']
+            package_class = f'{package_name}.{class_name}'
+            commit_or_branch = class_entity['commit_or_branch']
+            class_filepath = class_entity['filepath']
+            impacted_field_node_id = self.view.create_node_category(class_name, impacted_field['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_CHANGED, None, class_filepath, impacted_method['documentation'], '', {})
+            self.view.create_node_link(source_node_id, impacted_field_node_id)
+            extend_dict = {'field_node_id': impacted_field_node_id, 'class_filepath': class_filepath}
+            extend_dict.update(impacted_field)
+            self._add_to_need_analyze_obj_list('java', package_class, impacted_field['field_name'], None, commit_or_branch, extend_dict)
 
     # Step 5.9
     def _handle_impacted_methods(self, impacted_methods: list, source_node_id):
