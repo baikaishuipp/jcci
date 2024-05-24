@@ -279,7 +279,7 @@ class JCCI(object):
                 field_db['field_node_id'] = node_id
                 self._add_to_need_analyze_obj_list('java', f'{class_db["package_name"]}.{class_name}', field_db['field_name'], None, commit_or_branch, field_db)
                 if class_node_id:
-                    self.view.create_node_link(class_node_id, node_id)
+                    self.view.create_node_link(node_id, class_node_id)
             for method_db in methods_list:
                 node_extend_dict = {'is_api': False}
                 if is_controller and method_db['is_api']:
@@ -607,7 +607,7 @@ class JCCI(object):
             package_class = f'{package_name}.{class_name}'
             commit_or_branch = class_entity['commit_or_branch']
             class_filepath = class_entity['filepath']
-            impacted_field_node_id = self.view.create_node_category(class_name, impacted_field['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_CHANGED, None, class_filepath, impacted_method['documentation'], '', {})
+            impacted_field_node_id = self.view.create_node_category(class_name, impacted_field['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_CHANGED, None, class_filepath, impacted_field['documentation'], '', {})
             self.view.create_node_link(source_node_id, impacted_field_node_id)
             extend_dict = {'field_node_id': impacted_field_node_id, 'class_filepath': class_filepath}
             extend_dict.update(impacted_field)
