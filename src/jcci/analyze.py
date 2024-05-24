@@ -474,7 +474,9 @@ class JCCI(object):
                 json_extract_sql_list.append(sql_part)
             sql = f'SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND (' + ' OR '.join(json_extract_sql_list) + ')'
         else:
-            sql = f'''SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods WHERE project_id = {self.project_id} AND json_extract(method_invocation_map, '$."{package_class}".fields.{field_name}') IS NOT NULL'''
+            sql = f'''SELECT method_id, class_id, method_name, parameters, return_type, is_api, api_path, documentation, body FROM methods 
+            WHERE project_id = {self.project_id} AND 
+            (json_extract(method_invocation_map, '$."{package_class}".fields.{field_name}') IS NOT NULL OR json_extract(method_invocation_map, '$."{package_class}.{field_name}"') IS NOT NULL)'''
         methods = self.sqlite.select_data(sql)
         if not methods:
             field_method_name_list = ['get' + field_name_capitalize, 'set' + field_name_capitalize, 'is' + field_name_capitalize]

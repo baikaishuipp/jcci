@@ -139,7 +139,7 @@ class JavaParse(object):
             is_static = 'static' in list(field_obj.modifiers)
             documentation = field_obj.documentation
             start_line = field_obj.position.line if not field_obj.annotations else field_obj.annotations[0].position.line
-            end_line = field_obj.position.line
+            end_line = self._get_method_end_line(field_obj)
             field_obj = {
                 'class_id': class_id,
                 'project_id': self.project_id,
