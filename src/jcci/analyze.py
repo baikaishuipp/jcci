@@ -383,8 +383,6 @@ class JCCI(object):
                         if extends_package_class:
                             extends_methods = self._get_method_invocation_in_methods_table(extends_package_class, method_params, commit_or_branch)
                             entity_impacted_methods += extends_methods
-            if not entity_impacted_methods:
-                return
             self._handle_impacted_methods(entity_impacted_methods, source_node_id)
             self._handle_impacted_fields(entity_impacted_fields, source_node_id)
 
@@ -607,11 +605,15 @@ class JCCI(object):
             package_class = f'{package_name}.{class_name}'
             commit_or_branch = class_entity['commit_or_branch']
             class_filepath = class_entity['filepath']
-            impacted_field_node_id = self.view.create_node_category(class_name, impacted_field['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_CHANGED, None, class_filepath, impacted_field['documentation'], '', {})
+            impacted_field_node_id = self.view.create_node_category(class_name, impacted_field['field_name'], constant.NODE_TYPE_FIELD, constant.DIFF_TYPE_IMPACTED, None, class_filepath, impacted_field['documentation'], '', {})
             self.view.create_node_link(source_node_id, impacted_field_node_id)
             extend_dict = {'field_node_id': impacted_field_node_id, 'class_filepath': class_filepath}
             extend_dict.update(impacted_field)
             self._add_to_need_analyze_obj_list('java', package_class, impacted_field['field_name'], None, commit_or_branch, extend_dict)
+            if impacted_field['is_static'] == 'False':
+                self._add_to_need_analyze_obj_list('java', package_class, None, None, commit_or_branch, class_entity)
+                class_node_id = self.view.create_node_category(class_name, 'entity', constant.NODE_TYPE_CLASS, constant.DIFF_TYPE_IMPACTED, '', self.file_path, '', '', {})
+                self.view.create_node_link(impacted_field_node_id, class_node_id)
 
     # Step 5.9
     def _handle_impacted_methods(self, impacted_methods: list, source_node_id):
