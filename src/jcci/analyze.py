@@ -389,6 +389,7 @@ class JCCI(object):
     def _is_method_param_in_extends_package_class(self, method_param, extends_package_class, is_abstract, commit_or_branch):
         method_name: str = method_param.split('(')[0]
         method_arguments = method_param.split('(')[1].split(')')[0].split(',')
+        method_arguments = [ma for ma in method_arguments if ma]
         extends_package = '.'.join(extends_package_class.split('.')[0: -1])
         extends_class_name = extends_package_class.split('.')[-1]
         extends_class_db = self.sqlite.select_data(f'SELECT class_id, extends_class FROM class WHERE package_name = "{extends_package}" and class_name = "{extends_class_name}" and project_id = {self.project_id} and commit_or_branch = "{commit_or_branch}"')
