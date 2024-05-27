@@ -1,6 +1,7 @@
 ![Visitors](https://api.visitorbadge.io/api/visitors?path=https%3A%2F%2Fgithub.com%2Fbaikaishuipp%2Fjcci&countColor=%23263759)
 
-#### [中文简体](https://github.com/baikaishuipp/jcci/blob/main/README.md) OR [English](https://github.com/baikaishuipp/jcci/blob/main/README.en.md)
+### [English Doc](https://github.com/baikaishuipp/jcci/blob/main/README.en.md)
+
 # jcci
 
 ### 介绍
@@ -52,6 +53,9 @@ branch_analyze.analyze_two_branch('branch_new','branch_old')
 * username1 - 随便输入，为了避免并发分析同一项目导致结果错误，用户1分析项目A时，用户B需要等待，所以设置了该参数
 
 运行时，会将项目克隆到目录中，然后进行分析，生成后缀格式为.cci的文件，其中包含分析结果生成的关系图数据，下载[jcci-result.html](https://github.com/baikaishuipp/jcci/blob/main/jcci-result.html) ，选择分析结果的.cci文件，即可可通过视图显示。
+
+### 安全性
+项目分析都是基于本地环境执行，无任何代码收集和日志上报，源码可查，请放心使用。
 
 ### 开源不易，如本工具对您有帮助，请点一下右上角 star ⭐
 
