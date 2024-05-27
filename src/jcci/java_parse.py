@@ -932,7 +932,9 @@ class JavaParse(object):
         self.sqlite.insert_data('import', imports)
 
         # 处理 inner class
-        inner_class_declarations = [inner_class for inner_class in class_declaration.body if type(inner_class) == javalang.tree.ClassDeclaration]
+        inner_class_declarations = [inner_class for inner_class in class_declaration.body
+                                    if type(inner_class) == javalang.tree.ClassDeclaration
+                                    or type(inner_class) == javalang.tree.InterfaceDeclaration]
         for inner_class_obj in inner_class_declarations:
             self._parse_tree_class(inner_class_obj, filepath, tree_imports, package_class, commit_or_branch, lines, parse_import_first)
 
