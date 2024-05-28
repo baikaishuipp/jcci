@@ -76,6 +76,22 @@ class JCCI(object):
             ow.write(f'Occupy by {self.username}')
         time.sleep(1)
 
+    def _clone_dependents_project(self, dependents):
+        for dependent in dependents:
+            dependent_git_url = dependent.get('git_url')
+            if not dependent_git_url:
+                continue
+            dependent_branch = dependent.get('branch', 'master')
+            dependent_commit_id = dependent.get('commit_id', 'HEAD')
+            dependent_project_name = dependent_git_url.split('/')[-1].split('.git')[0]
+            dependent_file_path = os.path.join(self.file_path, dependent_project_name)
+            if not os.path.exists(dependent_file_path):
+                logging.info(f'Cloning dependent project: {dependent_git_url}')
+                os.system(f'git clone -b {dependent_branch} {dependent_git_url} {dependent_file_path} && cd {dependent_file_path} && git reset --hard {dependent_commit_id}')
+            else:
+                os.system(f'cd {dependent_file_path} && git fetch --all && git checkout -b {dependent_branch} origin/{dependent_branch} && git reset --hard {dependent_commit_id}')
+                os.system(f'cd {dependent_file_path} && git checkout -b {dependent_branch} && git reset --hard {dependent_commit_id}')
+
     # Step 2
     def _get_diff_parse_map(self, filepath, branch, commit_first, commit_second):
         logging.info('Git pull project to HEAD')
@@ -694,7 +710,7 @@ class JCCI(object):
             pass
         logging.info(f'Analyze done, spend: {t2 - self.t1}')
 
-    def analyze_two_branch(self, branch_first, branch_second):
+    def analyze_two_branch(self, branch_first, branch_second, **kwargs):
         logging.info('*' * 10 + 'Analyze start' + '*' * 10)
         self.commit_or_branch_new = branch_first
         self.commit_or_branch_old = branch_second
@@ -709,12 +725,16 @@ class JCCI(object):
         if not os.path.exists(self.file_path):
             logging.info(f'Cloning project: {self.git_url}')
             os.system(f'git clone -b {branch_first} {self.git_url} {self.file_path}')
+
+        dependents: list[dict] = kwargs.get('dependents', [])
+        self._clone_dependents_project(dependents)
+
         self._occupy_project()
         self.diff_parse_map = self._get_branch_diff_parse_map(self.file_path, branch_first, branch_second)
         self.xml_parse_results_new, self.xml_parse_results_old = self._parse_branch_project(self.file_path, branch_first, branch_second)
         self._start_analysis_diff_and_impact()
 
-    def analyze_two_commit(self, branch, commit_first, commit_second):
+    def analyze_two_commit(self, branch, commit_first, commit_second, **kwargs):
         logging.info('*' * 10 + 'Analyze start' + '*' * 10)
         self.branch_name = branch
         self.commit_or_branch_new = commit_first[0: 7] if len(commit_first) > 7 else commit_first
@@ -733,6 +753,9 @@ class JCCI(object):
             logging.info(f'Cloning project: {self.git_url}')
             os.system(f'git clone -b {self.branch_name} {self.git_url} {self.file_path}')
 
+        dependents: list[dict] = kwargs.get('dependents', [])
+        self._clone_dependents_project(dependents)
+
         self._occupy_project()
         self.diff_parse_map = self._get_diff_parse_map(self.file_path, self.branch_name, self.commit_or_branch_new, self.commit_or_branch_old)
 
@@ -740,7 +763,7 @@ class JCCI(object):
 
         self._start_analysis_diff_and_impact()
 
-    def analyze_class_method(self, branch, commit_id, package_class, method_nums):
+    def analyze_class_method(self, branch, commit_id, package_class, method_nums, **kwargs):
         logging.info('*' * 10 + 'Analyze start' + '*' * 10)
         package_class = package_class.replace("\\", "/")
         self.branch_name = branch
@@ -759,6 +782,10 @@ class JCCI(object):
         if not os.path.exists(self.file_path):
             logging.info(f'Cloning project: {self.git_url}')
             os.system(f'git clone -b {self.branch_name} {self.git_url} {self.file_path}')
+
+        dependents: list[dict] = kwargs.get('dependents', [])
+        self._clone_dependents_project(dependents)
+
         self._occupy_project()
 
         logging.info('Git pull project to HEAD')

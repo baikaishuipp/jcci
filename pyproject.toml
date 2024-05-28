@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jcci"
-version = "0.1.5"
+version = "0.2.0"
 authors = [
   { name="Oliver Li", email="441640312@qq.com" },
 ]
@@ -14,7 +14,7 @@ license = { file="LICENSE" }
 requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache-2.0 License",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
