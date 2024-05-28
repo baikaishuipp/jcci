@@ -924,8 +924,8 @@ class JavaParse(object):
         class_type = type(class_declaration).__name__.replace('Declaration', '')
         class_id, new_add = self._parse_class(class_declaration, filepath, package_name, import_list, commit_or_branch, parse_import_first)
         # 已经处理过了，返回
-        # if not new_add:
-        #     return
+        if not new_add and not config.reparse_class:
+            return
         # 导入import
         imports = [dict(import_obj, class_id=class_id, project_id=self.project_id) for import_obj in import_list]
         self.sqlite.update_data(f'DELETE FROM import WHERE class_id={class_id}')

@@ -47,6 +47,19 @@ class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java
 # Compare different branches
 branch_analyze = JCCI('git@xxxx.git', 'username1')
 branch_analyze.analyze_two_branch('branch_new','branch_old')
+
+
+# Multi-project joint analysis is supported by the above three methods. Take the analyze_two_commit method as an example.
+dependents = [
+    {
+        'git_url': 'git@xxxx.git',
+        'branch': 'master',  # default master when empty
+        'commit_id': 'HEAD'  # default HEAD when empty
+    }
+]
+commit_analyze = JCCI('git@xxxx.git', 'username1')
+commit_analyze.analyze_two_commit('master','commit_id1','commit_id2', dependents=dependents)
+
 ```
 
 #### Parameter Description:

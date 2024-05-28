@@ -36,7 +36,7 @@ PYPI: [jcci](https://pypi.org/project/jcci/) （会落后github几个版本）
 ```
 from path.to.jcci.src.jcci.analyze import JCCI
 
-# 同一分支不同commit比较
+# 同一分支不同commit分析
 commit_analyze = JCCI('git@xxxx.git', 'username1')
 commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 
@@ -44,9 +44,21 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2')
 class_analyze = JCCI('git@xxxx.git', 'username1')
 class_analyze.analyze_class_method('master','commit_id1', 'package\src\main\java\ClassA.java', '20,81')
 
-# 不同分支比较
+# 不同分支分析
 branch_analyze = JCCI('git@xxxx.git', 'username1')
 branch_analyze.analyze_two_branch('branch_new','branch_old')
+
+# 多项目联合分析，上述三种方法都支持，以analyze_two_commit方法举例
+dependents = [
+    {
+        'git_url': 'git@xxxx.git',
+        'branch': 'master',  # default master when empty
+        'commit_id': 'HEAD'  # default HEAD when empty
+    }
+]
+commit_analyze = JCCI('git@xxxx.git', 'username1')
+commit_analyze.analyze_two_commit('master','commit_id1','commit_id2', dependents=dependents)
+
 ```
 #### 参数说明：
 * project_git_url - 项目git地址，代码使用本机git配置clone代码，确保本机git权限或通过用户名密码/token的方式拼接url来clone代码。示例：https://userName:password@github.com/xxx.git 或 https://token@github.com/xxx.git
