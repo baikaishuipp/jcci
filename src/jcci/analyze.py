@@ -403,6 +403,8 @@ class JCCI(object):
             self._handle_impacted_fields(entity_impacted_fields, source_node_id)
 
     def _is_method_param_in_extends_package_class(self, method_param, extends_package_class, is_abstract, commit_or_branch):
+        if not extends_package_class:
+            return None, None
         method_name: str = method_param.split('(')[0]
         method_arguments = method_param.split('(')[1].split(')')[0].split(',')
         method_arguments = [ma for ma in method_arguments if ma]
