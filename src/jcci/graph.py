@@ -9,6 +9,8 @@ def max_relationship_length(relationships):
     for relationship in relationships:
         source = relationship['source']
         target = relationship['target']
+        if source == target:
+            continue
         if source not in graph:
             graph[source] = []
         if target not in graph:
@@ -87,7 +89,11 @@ class Graph(object):
             'source': source_node_id,
             'target': target_node_id
         }
-        if link not in self.links:
+        reverse_link = {
+            'source': target_node_id,
+            'target': source_node_id
+        }
+        if link not in self.links and reverse_link not in self.links:
             self.links.append(link)
 
     def draw_graph(self, canvas_width, canvas_height):
