@@ -19,17 +19,14 @@ def max_relationship_length(relationships):
 
     # BFS遍历计算每个节点到起点的最长路径长度
     longest_paths = {node: 0 for node in graph.keys()}
-    graph_keys = [node for node in graph.keys()]
-    longest_paths[graph_keys[0]] = 0
-    queue = deque([(graph_keys[0], 0)])
+    unvisited_nodes = set(graph.keys())
+    while unvisited_nodes:
+        start_node = unvisited_nodes.pop()
+        queue = deque([(start_node, 0)])
     while queue:
         node, path_length = queue.popleft()
-        if not graph.get(node) and not queue and graph_keys.index(node) + 1 < len(graph_keys):
-            next_node = graph_keys[graph_keys.index(node) + 1]
-            next_node_path_length = longest_paths[next_node]
-            queue.append((next_node, next_node_path_length))
-            continue
-        for neighbor in graph.get(node, []):
+            unvisited_nodes.discard(node)
+            for neighbor in graph.get(node, set()):
             if path_length + 1 > longest_paths[neighbor]:
                 longest_paths[neighbor] = path_length + 1
                 queue.append((neighbor, path_length + 1))
