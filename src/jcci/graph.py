@@ -12,10 +12,10 @@ def max_relationship_length(relationships):
         if source == target:
             continue
         if source not in graph:
-            graph[source] = []
+            graph[source] = set()
         if target not in graph:
-            graph[target] = []
-        graph[source].append(target)
+            graph[target] = set()
+        graph[source].add(target)
 
     # BFS遍历计算每个节点到起点的最长路径长度
     longest_paths = {node: 0 for node in graph.keys()}
