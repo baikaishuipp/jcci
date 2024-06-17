@@ -359,8 +359,9 @@ class JavaParse(object):
     def _parse_method(self, methods, lines, class_id, import_map, field_map, package_name, filepath):
         # 处理 methods
         all_method = []
-        class_db = self.sqlite.select_data(f'SELECT controller_base_url FROM class WHERE project_id = {self.project_id} and class_id = {class_id}')[0]
+        class_db = self.sqlite.select_data(f'SELECT controller_base_url, implements FROM class WHERE project_id = {self.project_id} and class_id = {class_id}')[0]
         base_url = class_db['controller_base_url'] if class_db['controller_base_url'] else ''
+        class_implements = class_db['implements']
         method_name_entity_map = {method.name: method for method in methods}
         for method_obj in methods:
             method_invocation = {}
@@ -368,7 +369,15 @@ class JavaParse(object):
             method_name = method_obj.name
             documentation = method_obj.documentation  # document
             annotations = json.dumps(method_obj.annotations, default=lambda obj: obj.__dict__)  # annotations
+            is_override_method = 'Override' in annotations
             is_api, api_path = self._judge_is_api(method_obj.annotations, base_url, method_name)
+            if not is_api and class_implements and is_override_method:
+                class_implements_list = class_implements.split(',')
+                class_implements_obj = self.sqlite.select_data(f'''select m.is_api, m.api_path from methods m left join class c on c.class_id = m.class_id 
+                                                                where c.project_id = {self.project_id} and m.method_name = '{method_name}' and c.class_name in ("{'","'.join(class_implements_list)}")''')
+                if class_implements_obj:
+                    is_api = class_implements_obj[0]['is_api']
+                    api_path = class_implements_obj[0]['api_path']
             access_modifier = [m for m in list(method_obj.modifiers) if m.startswith('p')][0] if list([m for m in list(method_obj.modifiers) if m.startswith('p')]) else 'public'
             is_static = 'static' in list(method_obj.modifiers)
             is_abstract = 'abstract' in list(method_obj.modifiers)
