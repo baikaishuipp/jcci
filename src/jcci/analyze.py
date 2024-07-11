@@ -690,7 +690,7 @@ class JCCI(object):
         print(json.dumps(result), flush=True)
         print(f'Impacted api list: {result["impacted_api_list"]}', flush=True)
         with open(self.cci_filepath, 'w') as w:
-            w.write(json.dumps(result))
+            w.write(json.dumps(result, ensure_ascii=False))
         logging.info(f'Generating cci result file success, location: {self.cci_filepath}')
 
     def _start_analysis_diff_and_impact(self):
