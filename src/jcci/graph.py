@@ -1,4 +1,4 @@
-from . import constant as constant
+from src.jcci import constant as constant
 from collections import deque
 
 def max_relationship_length(relationships):
@@ -23,14 +23,15 @@ def max_relationship_length(relationships):
     while unvisited_nodes:
         start_node = unvisited_nodes.pop()
         queue = deque([(start_node, 0)])
-    while queue:
-        node, path_length = queue.popleft()
+        while queue:
+            node, path_length = queue.popleft()
             unvisited_nodes.discard(node)
             for neighbor in graph.get(node, set()):
-            if path_length + 1 > longest_paths[neighbor]:
-                longest_paths[neighbor] = path_length + 1
-                queue.append((neighbor, path_length + 1))
+                if path_length + 1 > longest_paths[neighbor]:
+                    longest_paths[neighbor] = path_length + 1
+                    queue.append((neighbor, path_length + 1))
     return longest_paths
+
 
 class Graph(object):
 
@@ -146,4 +147,4 @@ class Graph(object):
 if __name__ == '__main__':
     data = [{'source': '62', 'target': '61'}, {'source': '63', 'target': '64'}, {'source': '63', 'target': '65'}, {'source': '63', 'target': '66'}, {'source': '63', 'target': '67'}, {'source': '9', 'target': '8'}, {'source': '68', 'target': '25'}, {'source': '21', 'target': '18'}, {'source': '21', 'target': '19'}, {'source': '26', 'target': '25'}, {'source': '27', 'target': '25'}, {'source': '72', 'target': '5'}, {'source': '72', 'target': '8'}, {'source': '72', 'target': '9'}, {'source': '73', 'target': '18'}, {'source': '73', 'target': '19'}, {'source': '73', 'target': '20'}, {'source': '73', 'target': '21'}, {'source': '74', 'target': '17'}, {'source': '74', 'target': '54'}, {'source': '75', 'target': '76'}, {'source': '75', 'target': '3'}, {'source': '75', 'target': '77'}, {'source': '75', 'target': '5'}, {'source': '75', 'target': '78'}, {'source': '75', 'target': '79'}, {'source': '75', 'target': '6'}, {'source': '75', 'target': '80'}, {'source': '75', 'target': '8'}, {'source': '75', 'target': '9'}, {'source': '75', 'target': '81'}, {'source': '46', 'target': '47'}, {'source': '46', 'target': '60'}, {'source': '47', 'target': '61'}, {'source': '48', 'target': '47'}, {'source': '49', 'target': '46'}, {'source': '50', 'target': '46'}, {'source': '83', 'target': '17'}, {'source': '83', 'target': '18'}, {'source': '54', 'target': '17'}, {'source': '55', 'target': '18'}, {'source': '56', 'target': '55'}, {'source': '57', 'target': '55'}, {'source': '58', 'target': '56'}, {'source': '58', 'target': '57'}, {'source': '59', 'target': '54'}, {'source': '59', 'target': '55'}, {'source': '59', 'target': '56'}, {'source': '59', 'target': '57'}, {'source': '64', 'target': '66'}, {'source': '65', 'target': '64'}]
     bb = max_relationship_length(data)
-
+    print(bb)
