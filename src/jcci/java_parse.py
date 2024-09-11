@@ -911,7 +911,7 @@ class JavaParse(object):
                 import_path = '.'.join(import_path.split('.')[0:-1])
             java_files = []
             if is_wildcard:
-                import_filepaths = [file_path + '/src/main/java/' + import_path.replace('.', '/') for file_path in self.sibling_dirs]
+                import_filepaths = [file_path + '/src/main/java/' + import_path.replace('.', '/') + '.java' for file_path in self.sibling_dirs]
                 for import_filepath in import_filepaths:
                     if not os.path.exists(import_filepath):
                         continue
