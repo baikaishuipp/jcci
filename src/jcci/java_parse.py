@@ -818,10 +818,14 @@ class JavaParse(object):
             var_type = f'{package_name}.{var}'
             return var_type
         if '.' not in var:
-            sql = "select package_name, class_name from class where project_id = {} and class_name=\"{}\" and filepath = \"{}\"".format(self.project_id, var, filepath)
+            sql = "select package_name, class_name from class where project_id = {} and class_name=\"{}\"".format(self.project_id, var)
             var_class_db = self.sqlite.select_data(sql)
-            if var_class_db:
+            if len(var_class_db) == 1:
                 return var_class_db[0]['package_name'] + '.' + var_class_db[0]['class_name']
+            import_values = import_map.values()
+            var_class_db_matched = [vcd for vcd in var_class_db if vcd['package_name'] in import_values]
+            if var_class_db_matched:
+                return var_class_db_matched[0]['package_name'] + '.' + var_class_db_matched[0]['class_name']
         return self._parse_layer_call_var_type(var, import_map, method_invocation)
 
     def _parse_layer_call_var_type(self, var, import_map, method_invocation):
@@ -911,7 +915,7 @@ class JavaParse(object):
                 import_path = '.'.join(import_path.split('.')[0:-1])
             java_files = []
             if is_wildcard:
-                import_filepaths = [file_path + '/src/main/java/' + import_path.replace('.', '/') + '.java' for file_path in self.sibling_dirs]
+                import_filepaths = [file_path + '/src/main/java/' + import_path.replace('.', '/') for file_path in self.sibling_dirs]
                 for import_filepath in import_filepaths:
                     if not os.path.exists(import_filepath):
                         continue
