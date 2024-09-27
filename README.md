@@ -75,11 +75,13 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2', dependents
 如果您在使用JCCI，请让我们知道，您的使用对我们非常重要：[登记链接](#33) （按登记顺序排列）
 <table>
 <tr>
-<td><a href="https://www.hand-china.com/">
+<td>
+    <a href="https://www.hand-china.com/">
     <img src="https://www.hand-china.com/static/img/logos.png" alt="Hand-china" width="200" height=""/>
 </td>
-<td><a href="https://www.sf-tech.com.cn/">
-    <img src="https://file-cdn.sf-tech.com.cn/4b0e8166vodcq1252208358/bdca0b1d388912589288217241/je8y8PlicMkA.svg" alt="sf-tech" width="200" height=""/>
+<td>
+    <a href="https://www.sf-tech.com.cn/">
+    <img src="https://file-cdn.sf-tech.com.cn/4b0e8166vodcq1252208358/bdca0b1d388912589288217241/je8y8PlicMkA.svg" alt="sf-tech" style="background-color: black;" width="200" height=""/>
 </td>
 </tr>
 </table>
