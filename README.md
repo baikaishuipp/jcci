@@ -83,6 +83,10 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2', dependents
     <a href="https://www.sf-tech.com.cn/">
     <img src="https://file-cdn.sf-tech.com.cn/4b0e8166vodcq1252208358/bdca0b1d388912589288217241/je8y8PlicMkA.svg" alt="sf-tech" style="background-color: black;" width="200" height=""/>
 </td>
+<td>
+    <a href="https://www.dazhenyun.cn/">
+    <img src="https://www.dazhenyun.cn/img/dazhen.eebcd251.png" alt="dazhenyun" style="background-color: black;" width="200" height=""/>
+</td>
 </tr>
 </table>
 
