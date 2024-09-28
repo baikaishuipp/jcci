@@ -77,15 +77,15 @@ commit_analyze.analyze_two_commit('master','commit_id1','commit_id2', dependents
 <tr>
 <td>
     <a href="https://www.hand-china.com/">
-    <img src="https://www.hand-china.com/static/img/logos.png" alt="Hand-china" width="200" height=""/>
+    <img src="https://www.hand-china.com/static/img/logos.png" alt="Hand-china" width="200" height="100"/>
 </td>
-<td style="background-color: black;">
+<td>
     <a href="https://www.sf-tech.com.cn/">
-    <img src="https://file-cdn.sf-tech.com.cn/4b0e8166vodcq1252208358/bdca0b1d388912589288217241/je8y8PlicMkA.svg" alt="sf-tech" width="200" height=""/>
+    <img src="https://p6.itc.cn/q_70/images03/20220901/83f2548ac61e484ca1f7db3d30509b7b.jpeg" alt="sf-tech" width="200" height=""/>
 </td>
-<td style="background-color: black;">
+<td>
     <a href="https://www.dazhenyun.cn/">
-    <img src="https://www.dazhenyun.cn/img/dazhen.eebcd251.png" alt="dazhenyun" width="200" height=""/>
+    <img src="https://image0.lietou-static.com/bg_white_222x222/5ef17aa2f3eec46a32352c0107u.png" alt="dazhenyun" width="200" height=""/>
 </td>
 </tr>
 </table>
